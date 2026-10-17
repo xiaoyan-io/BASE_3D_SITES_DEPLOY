@@ -207,6 +207,21 @@
     @media (prefers-reduced-motion: reduce) {
       * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     }
+
+    /* REV 02: compact, legible mobile prompt and reference modals */
+    @media (max-width: 768px) {
+      #promptModal, #moodboardModal { padding: 8px !important; align-items: center; }
+      #promptModal > div, #moodboardModal > div { width: 100%; max-height: 85vh; max-height: 85dvh; }
+      #promptModal > div > div:first-child, #moodboardModal > div > div:first-child { flex-shrink: 0; gap: 10px; }
+      #promptModal > div > div:last-child, #moodboardModal > div > div:last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+      #promptModal .bg-white, #moodboardModal .bg-white,
+      #promptModal .bg-gray-50, #moodboardModal .bg-gray-50 { background-color: #102b48 !important; }
+      #promptModal .text-gray-400, #promptModal .text-gray-500, #promptModal .text-gray-600,
+      #moodboardModal .text-gray-400, #moodboardModal .text-gray-500, #moodboardModal .text-gray-600 { color: #d8e7f8 !important; }
+      #promptModal .text-gray-700, #promptModal .text-gray-800, #promptModal .text-gray-900,
+      #moodboardModal .text-gray-700, #moodboardModal .text-gray-800, #moodboardModal .text-gray-900 { color: #f2f7ff !important; }
+      #promptModal button, #moodboardModal button { min-height: 36px; }
+    }
   </style>
 
   <!-- Tailwind 静态构建产物（21 KB），替代 cdn.tailwindcss.com 的运行时编译 -->
@@ -1320,9 +1335,10 @@
     scene.background = new THREE.Color(0xe9e9e6);
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
+    const mobileGpu = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+    const renderer = new THREE.WebGLRenderer({ antialias: !mobileGpu, powerPreference: mobileGpu ? 'low-power' : 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobileGpu ? 1.25 : 2));
+    renderer.shadowMap.enabled = !mobileGpu;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
@@ -1336,9 +1352,9 @@
 
     const dirLight = new THREE.DirectionalLight(0xfffbf0, 0.85);
     dirLight.position.set(14, 24, 16);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
+    dirLight.castShadow = !mobileGpu;
+    dirLight.shadow.mapSize.width = mobileGpu ? 1024 : 2048;
+    dirLight.shadow.mapSize.height = mobileGpu ? 1024 : 2048;
     dirLight.shadow.camera.near = 1;
     dirLight.shadow.camera.far = 80;
     const d = 16;
