@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BASE / 空间设计实验室 — 多领域3D空间交互平台 (室内·建筑·城市规划·数字文旅)</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231c1f24'/%3E%3Cpath d='M50 20 78 36v28L50 80 22 64V36Z' fill='none' stroke='%23fff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M22 36l28 16 28-16M50 52v28' fill='none' stroke='%23fff' stroke-width='6' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/jpeg" href="assets/nalen-favicon-rev02.jpg">
 
   <!-- 本地化依赖：Three.js r128 走本地，不再依赖 cdnjs -->
   <script src="vendor/three/three.min.js"></script>
@@ -609,6 +609,25 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; }
     }
+
+    /* NALEN 品牌卡片与控件精修：不修改 Three.js 画布 */
+    .nalen-brand-card { margin:12px 10px 8px; overflow:hidden; flex-shrink:0; border:1px solid rgba(107,184,255,.32); border-radius:12px; background:#081b30; box-shadow:0 9px 26px rgba(0,0,0,.27),inset 0 1px rgba(255,255,255,.06); }
+    .nalen-brand-card img { display:block; width:100%; height:auto; aspect-ratio:960/357; object-fit:cover; }
+    .nalen-brand-caption { display:flex; align-items:center; gap:7px; padding:9px 10px; color:#c2dafa; border-top:1px solid rgba(107,184,255,.17); background:linear-gradient(90deg,#0b2644,#071b30); font-size:9px; font-weight:600; letter-spacing:.1em; white-space:nowrap; }
+    .nalen-live-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; background:#56d2ff; box-shadow:0 0 9px rgba(86,210,255,.75); }
+    .nalen-brand-version { margin-left:auto; color:#7fa2c9; font-size:9px; }
+    header .leading-tight > div:first-child { letter-spacing:.015em; }
+    header .leading-tight > div:last-child { letter-spacing:.15em; }
+    .domain-tab,.view-tab,.render-tab,#styleGridContainer button { transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease; }
+    .domain-tab:hover,.view-tab:hover,#styleGridContainer button:hover { transform:translateY(-1px); }
+    #rightViewerControls,#selectedSpaceCard,#lightingPopover { border-radius:14px !important; }
+    #hudViewTitle { color:#eaf4ff !important; text-shadow:0 2px 12px rgba(0,0,0,.5); }
+    #hudViewSub,#hudStyleTag { color:#a7c9ec !important; text-shadow:0 1px 7px rgba(0,0,0,.55); }
+    #spaceListContainer { scrollbar-color:#24577d transparent; }
+    @media(prefers-reduced-motion:reduce){ .domain-tab:hover,.view-tab:hover,#styleGridContainer button:hover { transform:none; } }
+
+    .nalen-rev02-header-logo { display:block; width:66px; height:38px; object-fit:contain; filter:drop-shadow(0 1px 6px rgba(47,152,255,.23)); }
+    @media (max-width:640px) { .nalen-rev02-header-logo { width:43px; height:30px; } }
   </style>
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden bg-[#f3f3f1]">
@@ -626,13 +645,7 @@
         </svg>
       </button>
       <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-[#1c1f24] text-white flex items-center justify-center shadow-sm shrink-0">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </div>
+        <img class="nalen-rev02-header-logo shrink-0" src="assets/nalen-logo-rev02.png" alt="NALEN Spatial and Technology Systems" width="66" height="38" decoding="async">
         <div class="leading-tight hidden sm:block">
           <div class="text-xs font-bold tracking-tight text-gray-900">NALEN / BASE · 空间设计实验室</div>
           <div class="text-[9px] tracking-widest text-gray-400 uppercase">AI · SPATIAL DESIGN · TECHNOLOGY SYSTEMS</div>
@@ -706,6 +719,10 @@
 
     <!-- LEFT SIDEBAR: SPATIAL DIRECTORY + MODEL LAYERS + DESIGN STYLE -->
     <aside class="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0 z-20 select-none">
+      <div class="nalen-brand-card" aria-label="NALEN 空间设计与技术系统">
+        <img src="assets/nalen-brand-banner.png" alt="NALEN AI · Spatial Design · Technology Systems" loading="eager" decoding="async">
+        <div class="nalen-brand-caption"><span class="nalen-live-dot" aria-hidden="true"></span><span>BASE 3D / INTERACTIVE LAB</span><span class="nalen-brand-version">REV 02</span></div>
+      </div>
       <!-- Section 1: Spatial Directory -->
       <div class="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-1.5">
