@@ -1,0 +1,2806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BASE / 空间设计实验室 — 多领域3D空间交互平台 (室内·建筑·城市规划·数字文旅)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231c1f24'/%3E%3Cpath d='M50 20 78 36v28L50 80 22 64V36Z' fill='none' stroke='%23fff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M22 36l28 16 28-16M50 52v28' fill='none' stroke='%23fff' stroke-width='6' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <!-- 本地化依赖：Three.js r128 走本地，不再依赖 cdnjs -->
+  <script src="vendor/three/three.min.js"></script>
+  <style>
+    /* 本地 Inter 可变字体（latin 子集，48 KB），替代 Google Fonts */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('vendor/fonts/inter-latin.woff2') format('woff2');
+    }
+
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    body, html {
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background-color: #f4f4f2; color: #1f2937;
+    }
+    /* Custom thin scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+    /* Custom Switch Toggle */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #2b7a68;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #2b7a68;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(229, 231, 235, 0.85);
+    }
+    .label-3d {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+      z-index: 15;
+    }
+    .label-3d:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      z-index: 25;
+    }
+    .label-3d.active-label {
+      background-color: #1f6f5c !important;
+      color: #ffffff !important;
+      border-color: #134e40 !important;
+      box-shadow: 0 4px 14px rgba(31, 111, 92, 0.35);
+    }
+    input[type="range"] {
+      accent-color: #2b7a68;
+    }
+
+    /* 全局禁选会影响复制提示词，这里把文本类元素放开 */
+    input, textarea, select, pre, code, [contenteditable="true"],
+    .selectable, .prompt-box {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    /* ================= 移动端适配 ================= */
+    /* 抽屉遮罩 */
+    #sidebarScrim {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      z-index: 39;
+      backdrop-filter: blur(2px);
+    }
+
+    #btnToggleSidebar { display: none; }
+
+    @media (max-width: 1023px) {
+      /* 顶栏改为可换行 + 横向滚动，避免按钮被压成竖排单字 */
+      header {
+        height: auto !important;
+        min-height: 48px;
+        flex-wrap: wrap;
+        gap: 6px 8px;
+        padding: 6px 8px;
+      }
+
+      header > div {
+        flex-shrink: 0;
+      }
+
+      /* 领域页签 / 视图页签在窄屏可横向滑动 */
+      header nav,
+      header > div:nth-child(2) {
+        overflow-x: auto;
+        scrollbar-width: none;
+        max-width: 100%;
+      }
+
+      header nav::-webkit-scrollbar,
+      header > div:nth-child(2)::-webkit-scrollbar {
+        display: none;
+      }
+
+      .domain-tab, .view-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      /* 侧边栏变抽屉 */
+      #btnToggleSidebar { display: inline-flex; }
+
+      aside {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 260px;
+        max-width: 82vw;
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+        /* 必须压过遮罩（z-39）：aside 自带 z-20 工具类，优先级高于元素选择器 */
+        z-index: 40 !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+      }
+
+      aside.drawer-open {
+        transform: translateX(0);
+      }
+
+      #sidebarScrim.show {
+        display: block;
+      }
+
+      /* 视口浮层收边，避免在手机上盖满画面 */
+      #rightViewerControls {
+        width: 168px !important;
+        padding: 8px !important;
+        top: 8px !important;
+        right: 8px !important;
+        max-height: calc(100% - 16px);
+        overflow-y: auto;
+      }
+
+      #selectedSpaceCard {
+        width: calc(100% - 16px) !important;
+        left: 8px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+        padding: 10px !important;
+      }
+
+      #walkControlsOverlay {
+        left: 8px !important;
+        transform: none !important;
+        bottom: 86px !important;
+        align-items: flex-start !important;
+      }
+
+      #bottomRightControls {
+        bottom: 86px !important;
+        right: 8px !important;
+      }
+
+      #lightingPopover {
+        width: 200px !important;
+      }
+
+      #plan2dOverlay > .glass-panel {
+        top: 8px !important;
+        right: 8px !important;
+        width: 168px !important;
+        padding: 8px !important;
+      }
+    }
+
+    @media (max-width: 640px) {
+      /* 小屏隐藏 HUD 标题与底部提示，给 3D 画面让路 */
+      #hudViewTitle { font-size: 14px !important; }
+      #hudViewSub, #hudStyleTag { display: none; }
+
+      footer #footerHintText { display: none; }
+
+      #rightViewerControls {
+        width: 148px !important;
+      }
+
+      /* 选中空间卡在小屏改为紧凑底部条 */
+      #cardSpaceDesc,
+      #cardConnectedBlock {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+
+  <!-- Tailwind 静态构建产物（21 KB），替代 cdn.tailwindcss.com 的运行时编译 -->
+  <link rel="stylesheet" href="vendor/tailwind/tailwind.css">
+
+  <style id="nalen-ui-theme">
+    :root {
+      color-scheme: dark;
+      --nalen-ink: #eaf4ff;
+      --nalen-muted: #8ea9c7;
+      --nalen-bg: #06172b;
+      --nalen-panel: #0a2039;
+      --nalen-panel-raised: #0d2a49;
+      --nalen-line: rgba(133, 180, 224, 0.2);
+      --nalen-blue: #168dff;
+      --nalen-cyan: #58d0ff;
+      --nalen-blue-soft: rgba(22, 141, 255, 0.13);
+    }
+
+    html, body {
+      background: var(--nalen-bg) !important;
+      color: var(--nalen-ink);
+    }
+
+    body {
+      background-image: radial-gradient(ellipse at 48% -28%, rgba(25, 111, 190, 0.2), transparent 58%);
+    }
+
+    header {
+      background: linear-gradient(108deg, #061426 0%, #0b2948 52%, #07182e 100%) !important;
+      border-color: var(--nalen-line) !important;
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
+      color: var(--nalen-ink);
+    }
+
+    header .text-gray-900, header .text-gray-800, header .text-gray-700,
+    header .text-gray-600, header .text-gray-500, header .text-gray-400 {
+      color: var(--nalen-ink) !important;
+    }
+
+    header .text-gray-500, header .text-gray-400 { color: var(--nalen-muted) !important; }
+
+    header nav, header > div:nth-child(2) {
+      background: rgba(2, 13, 27, 0.52) !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    header .border-gray-200, header .border-gray-200\/80,
+    header .border-transparent {
+      border-color: var(--nalen-line) !important;
+    }
+
+    header .domain-tab, header .view-tab, header .render-tab {
+      color: #9bb5d1 !important;
+      background: transparent !important;
+      border-color: transparent !important;
+      box-shadow: none;
+    }
+
+    header .domain-tab:hover, header .view-tab:hover, header .render-tab:hover {
+      color: #ffffff !important;
+      background: rgba(83, 165, 242, 0.1) !important;
+    }
+
+    header .domain-tab[class*="bg-white"],
+    header .render-tab[class*="bg-white"] {
+      color: #f3f9ff !important;
+      background: linear-gradient(135deg, #164a78, #0b2d4d) !important;
+      border: 1px solid rgba(88, 208, 255, 0.32) !important;
+      box-shadow: inset 0 1px rgba(255,255,255,0.06), 0 3px 14px rgba(22,141,255,0.12) !important;
+    }
+
+    header .view-tab[class*="bg-[#e6f2ef]"] {
+      color: #c7efff !important;
+      background: linear-gradient(135deg, #123e65, #0b2b4a) !important;
+      border-color: rgba(88, 208, 255, 0.42) !important;
+      box-shadow: inset 0 1px rgba(255,255,255,0.06), 0 3px 14px rgba(22,141,255,0.12) !important;
+    }
+
+    #btnToggleSidebar, #btnSaveLayout, #btnExportJson {
+      color: var(--nalen-ink) !important;
+      background: rgba(255,255,255,0.045) !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    #btnOpenMoodboard, #btnOpenPromptModal {
+      color: #c9efff !important;
+      background: rgba(22,141,255,0.12) !important;
+      border-color: rgba(88,208,255,0.34) !important;
+    }
+
+    #btnOpenMoodboard:hover, #btnOpenPromptModal:hover,
+    #btnToggleSidebar:hover, #btnSaveLayout:hover, #btnExportJson:hover {
+      background: rgba(22,141,255,0.2) !important;
+      border-color: rgba(88,208,255,0.55) !important;
+    }
+
+    aside {
+      color: var(--nalen-ink);
+      background: linear-gradient(180deg, #091d34 0%, #07172a 100%) !important;
+      border-color: var(--nalen-line) !important;
+      box-shadow: 10px 0 32px rgba(0,0,0,0.12);
+    }
+
+    aside .text-gray-900, aside .text-gray-800, aside .text-gray-700,
+    aside .text-gray-600 { color: #dceaff !important; }
+
+    aside .text-gray-500, aside .text-gray-400 { color: var(--nalen-muted) !important; }
+
+    aside .bg-white, aside .bg-gray-50, aside .bg-gray-50\/50 {
+      background: rgba(255,255,255,0.025) !important;
+    }
+
+    aside .border-gray-100, aside .border-gray-200, aside .divide-gray-50 > :not([hidden]) ~ :not([hidden]) {
+      border-color: var(--nalen-line) !important;
+    }
+
+    #spaceListContainer button { border-bottom: 1px solid rgba(133,180,224,0.08); }
+    #spaceListContainer button:hover {
+      color: #f4faff !important;
+      background: rgba(22,141,255,0.09) !important;
+    }
+
+    #spaceListContainer button[class*="bg-[#e6f2ef]"] {
+      color: #c8efff !important;
+      background: linear-gradient(90deg, rgba(22,141,255,0.2), rgba(22,141,255,0.045)) !important;
+      border-left-color: var(--nalen-cyan) !important;
+    }
+
+    #styleGridContainer button {
+      color: var(--nalen-ink) !important;
+      background: #0b2340 !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    #styleGridContainer button:hover {
+      border-color: rgba(88,208,255,0.42) !important;
+      background: #103052 !important;
+    }
+
+    #styleGridContainer button[class*="bg-[#f2f9f7]"] {
+      background: linear-gradient(135deg, #12395c, #0b2541) !important;
+      border-color: rgba(88,208,255,0.48) !important;
+      box-shadow: inset 0 0 0 1px rgba(22,141,255,0.08), 0 4px 18px rgba(0,0,0,0.12) !important;
+    }
+
+    #styleGridContainer .text-gray-900 { color: #edf7ff !important; }
+    #styleGridContainer .text-gray-600 { color: #a8c0d9 !important; }
+
+    aside .peer:checked + div { background-color: var(--nalen-blue) !important; }
+    input[type="range"] { accent-color: var(--nalen-blue) !important; }
+
+    main { background: #07172a !important; }
+
+    main > div:first-child {
+      background: rgba(8, 29, 51, 0.96) !important;
+      border-color: var(--nalen-line) !important;
+      color: var(--nalen-ink);
+    }
+
+    main > div:first-child .text-gray-700,
+    main > div:first-child .text-gray-600,
+    main > div:first-child .text-gray-500,
+    main > div:first-child .text-gray-400 {
+      color: var(--nalen-muted) !important;
+    }
+
+    #cameraPresetSelect, select, option {
+      color: var(--nalen-ink);
+      background-color: #0c2744;
+      border-color: var(--nalen-line);
+    }
+
+    .glass-panel, #rightViewerControls, #selectedSpaceCard, #lightingPopover,
+    #plan2dOverlay > .glass-panel {
+      color: var(--nalen-ink);
+      background: rgba(7, 25, 46, 0.9) !important;
+      border: 1px solid rgba(133,180,224,0.23) !important;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.25), inset 0 1px rgba(255,255,255,0.035) !important;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    #rightViewerControls .text-gray-900, #rightViewerControls .text-gray-800,
+    #rightViewerControls .text-gray-700, #rightViewerControls .text-gray-600,
+    #selectedSpaceCard .text-gray-900, #selectedSpaceCard .text-gray-800,
+    #selectedSpaceCard .text-gray-700, #selectedSpaceCard .text-gray-600,
+    #lightingPopover .text-gray-900, #lightingPopover .text-gray-800,
+    #lightingPopover .text-gray-700, #lightingPopover .text-gray-600 {
+      color: #dceaff !important;
+    }
+
+    #rightViewerControls .text-gray-500, #rightViewerControls .text-gray-400,
+    #selectedSpaceCard .text-gray-500, #selectedSpaceCard .text-gray-400,
+    #lightingPopover .text-gray-500, #lightingPopover .text-gray-400 {
+      color: var(--nalen-muted) !important;
+    }
+
+    #rightViewerControls .border-gray-200, #selectedSpaceCard .border-gray-200,
+    #lightingPopover .border-gray-200, #lightingPopover .border-gray-200\/80 {
+      border-color: var(--nalen-line) !important;
+    }
+
+    #cardSpaceName { color: #f1f8ff !important; }
+    #cardSpaceArea {
+      color: #c7efff !important;
+      background: rgba(22,141,255,0.13) !important;
+      border-color: rgba(88,208,255,0.3) !important;
+    }
+
+    #cardConnectedLinks button {
+      color: #c5eaff !important;
+      background: rgba(22,141,255,0.12) !important;
+      border-color: rgba(88,208,255,0.24) !important;
+    }
+
+    #cardConnectedLinks button:hover {
+      background: rgba(22,141,255,0.22) !important;
+      border-color: rgba(88,208,255,0.45) !important;
+    }
+
+    .label-3d.active-label {
+      background: #0876d9 !important;
+      border-color: #72d9ff !important;
+      box-shadow: 0 4px 18px rgba(22,141,255,0.38) !important;
+    }
+
+    #walkControlsOverlay .bg-white\/80 {
+      color: #cde9ff !important;
+      background: rgba(7,25,46,0.82) !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    #bottomRightControls button {
+      color: #dceeff !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    footer {
+      color: var(--nalen-muted) !important;
+      background: #061426 !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    #moodboardModal > div, #promptModal > div {
+      color: var(--nalen-ink) !important;
+      background: #091d34 !important;
+      border-color: var(--nalen-line) !important;
+    }
+
+    #moodboardModal .border-gray-200, #promptModal .border-gray-200 {
+      border-color: var(--nalen-line) !important;
+    }
+
+    #moodboardModal .text-gray-900, #promptModal .text-gray-900,
+    #moodboardModal .text-gray-800, #promptModal .text-gray-800,
+    #moodboardModal .text-gray-700, #promptModal .text-gray-700 {
+      color: #e5f1ff !important;
+    }
+
+    #moodboardModal .text-gray-600, #promptModal .text-gray-600,
+    #moodboardModal .text-gray-500, #promptModal .text-gray-500,
+    #moodboardModal .text-gray-400, #promptModal .text-gray-400 {
+      color: var(--nalen-muted) !important;
+    }
+
+    #moodboardBody, #promptTemplatesList {
+      background: #07182c !important;
+    }
+
+    #promptModal .bg-emerald-50 {
+      color: #d3efff !important;
+      background: rgba(22,141,255,0.1) !important;
+      border-color: rgba(88,208,255,0.25) !important;
+    }
+
+    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--nalen-cyan) !important;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 1023px) {
+      header { box-shadow: 0 5px 18px rgba(0,0,0,0.22); }
+      header nav, header > div:nth-child(2) { scrollbar-width: none; }
+    }
+
+    @media (max-width: 640px) {
+      /* 手机端把顶栏拆成可控的纵向层级，避免领域与工具按钮挤出屏幕 */
+      header {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+        justify-content: stretch;
+        gap: 6px;
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 7px 8px !important;
+      }
+
+      header > div:first-child {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        gap: 6px 8px;
+        width: 100%;
+        min-width: 0;
+        flex-shrink: 1;
+      }
+
+      header > div:first-child > div:nth-child(2) {
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      header > div:first-child > div:nth-child(3) {
+        display: none !important;
+      }
+
+      header > div:first-child > nav {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+      }
+
+      header .leading-tight > div:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      header > div:nth-child(2), header > div:nth-child(3) {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        flex-shrink: 1;
+        justify-content: flex-start;
+        overflow-x: auto;
+      }
+
+      header > div:nth-child(2) { gap: 2px; }
+      header > div:nth-child(3) { gap: 6px; padding-bottom: 1px; }
+      header > div:nth-child(3) button { flex-shrink: 0; }
+      .domain-tab, .view-tab { flex-shrink: 0; }
+
+      #rightViewerControls {
+        width: 148px !important;
+        max-width: calc(100vw - 16px) !important;
+        left: auto !important;
+        right: 8px !important;
+        top: 8px !important;
+      }
+
+      #bottomRightControls {
+        right: 8px !important;
+        max-width: calc(100vw - 16px);
+      }
+
+      #bottomRightControls > div:last-child {
+        max-width: calc(100vw - 16px);
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      #bottomRightControls #btnToggleLighting {
+        max-width: calc(100vw - 56px);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 640px) {
+      /* 次级工具栏允许换行，避免镜头选择与渲染模式互相挤压 */
+      main > div:first-child {
+        height: auto !important;
+        min-height: 40px;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 7px 8px !important;
+      }
+
+      main > div:first-child > div:first-child {
+        flex: 1 1 180px;
+        min-width: 0;
+      }
+
+      #cameraPresetSelect {
+        width: clamp(150px, 42vw, 220px);
+        max-width: calc(100vw - 24px);
+      }
+
+      main > div:first-child > div:last-child {
+        flex-shrink: 0;
+        max-width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden bg-[#f3f3f1]">
+
+  <!-- 移动端抽屉遮罩 -->
+  <div id="sidebarScrim"></div>
+
+  <!-- TOP HEADER BAR -->
+  <header class="h-12 bg-white border-b border-gray-200 px-3 flex items-center justify-between shrink-0 z-30">
+    <!-- Left: Brand + Domain Selector -->
+    <div class="flex items-center gap-3 min-w-0">
+      <button id="btnToggleSidebar" class="items-center justify-center w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-700 shrink-0" aria-label="打开空间目录" title="空间目录 / 图层 / 风格">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-[#1c1f24] text-white flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <div class="leading-tight hidden sm:block">
+          <div class="text-xs font-bold tracking-tight text-gray-900">NALEN / BASE · 空间设计实验室</div>
+          <div class="text-[9px] tracking-widest text-gray-400 uppercase">AI · SPATIAL DESIGN · TECHNOLOGY SYSTEMS</div>
+        </div>
+      </div>
+
+      <div class="h-4 w-[1px] bg-gray-200 hidden sm:block"></div>
+
+      <!-- 4 Domain Tabs -->
+      <nav class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200/80" aria-label="领域切换">
+        <button id="domainBtn-interior" data-domain="interior" class="domain-tab px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-900 shadow-sm">
+          1. 室内空间
+        </button>
+        <button id="domainBtn-arch" data-domain="arch" class="domain-tab px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+          2. 建筑单体
+        </button>
+        <button id="domainBtn-urban" data-domain="urban" class="domain-tab px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+          3. 城市规划
+        </button>
+        <button id="domainBtn-tourism" data-domain="tourism" class="domain-tab px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+          4. 数字文旅
+        </button>
+      </nav>
+    </div>
+
+    <!-- Center: 5 View Mode Switcher (Matches Reference UI) -->
+    <div class="flex items-center bg-gray-100/90 p-0.5 rounded-lg border border-gray-200">
+      <button id="viewBtn-perspective" data-view="perspective" class="view-tab flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-[#e6f2ef] text-[#1f6f5c] border border-[#b6dcd3]">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12L4 7.5"/></svg>
+        <span>透视</span>
+      </button>
+      <button id="viewBtn-axon" data-view="axon" class="view-tab flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
+        <span>轴测</span>
+      </button>
+      <button id="viewBtn-top" data-view="top" class="view-tab flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        <span>俯视</span>
+      </button>
+      <button id="viewBtn-plan" data-view="plan" class="view-tab flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>平面</span>
+      </button>
+      <button id="viewBtn-walk" data-view="walk" class="view-tab flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all text-gray-600 hover:text-gray-900">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M10 22v-6l-2-3v-4h8v4l-2 3v6"/></svg>
+        <span>漫游</span>
+      </button>
+    </div>
+
+    <!-- Right: Style Board, AI Prompt Guide & Backup Actions -->
+    <div class="flex items-center gap-1.5">
+      <button id="btnOpenMoodboard" class="px-2.5 py-1 rounded-md text-xs font-medium border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="hidden md:inline">风格图板</span>
+      </button>
+      <button id="btnOpenPromptModal" class="px-2.5 py-1 rounded-md text-xs font-medium border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
+        <span class="hidden md:inline">AI提示词工坊</span>
+      </button>
+      <button id="btnSaveLayout" class="px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 text-[11px] text-gray-700 hidden lg:inline-block">
+        保存布局
+      </button>
+      <button id="btnExportJson" class="px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 text-[11px] text-gray-700 hidden xl:inline-block">
+        下载布局备份
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN BODY -->
+  <div class="flex-1 flex min-h-0 relative overflow-hidden">
+
+    <!-- LEFT SIDEBAR: SPATIAL DIRECTORY + MODEL LAYERS + DESIGN STYLE -->
+    <aside class="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0 z-20 select-none">
+      <!-- Section 1: Spatial Directory -->
+      <div class="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between">
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-semibold text-gray-800">空间目录</span>
+          <span id="spaceCountBadge" class="text-[11px] font-mono text-gray-400">12</span>
+        </div>
+        <button id="btnResetSelection" class="text-[11px] text-emerald-700 hover:underline">全览视角</button>
+      </div>
+
+      <div id="spaceListContainer" class="flex-1 overflow-y-auto py-1 divide-y divide-gray-50">
+        <!-- Populated dynamically by JS -->
+      </div>
+
+      <!-- Section 2: MODEL LAYERS -->
+      <div class="p-3 border-t border-gray-200 bg-gray-50/50 space-y-2">
+        <div class="flex items-center justify-between text-[10px] font-semibold tracking-wider text-gray-400 uppercase">
+          <span>MODEL LAYERS</span>
+          <span>模型分层</span>
+        </div>
+
+        <!-- Structural Layer -->
+        <div class="flex items-center justify-between py-1">
+          <div class="min-w-0 pr-2">
+            <div id="layerStructureTitle" class="text-xs font-medium text-gray-800 flex items-center gap-1">
+              <span>建筑结构层</span>
+            </div>
+            <div id="layerStructureDesc" class="text-[10px] text-gray-400 truncate">墙体 · 梁柱 · 门窗 · 阳台边界</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="toggleStructureLayer" class="sr-only peer" checked>
+            <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+          </label>
+        </div>
+
+        <!-- Design / Furnishing Layer -->
+        <div class="flex items-center justify-between py-1">
+          <div class="min-w-0 pr-2">
+            <div id="layerDesignTitle" class="text-xs font-medium text-gray-800">室内设计层</div>
+            <div id="layerDesignDesc" class="text-[10px] text-gray-400 truncate">家具软装 · 艺术灯具 · 绿化构件</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="toggleDesignLayer" class="sr-only peer" checked>
+            <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 3: DESIGN STYLE (Matches Reference 2x2 Grid) -->
+      <div class="p-3 border-t border-gray-200 bg-white">
+        <div class="flex items-center justify-between text-[10px] font-semibold tracking-wider text-gray-400 uppercase mb-2">
+          <span>DESIGN STYLE</span>
+          <span>参考与设计</span>
+        </div>
+        <div id="styleGridContainer" class="grid grid-cols-2 gap-1.5">
+          <!-- Populated dynamically per domain -->
+        </div>
+        <div class="mt-2 text-[10px] text-gray-400 leading-tight">
+          切换美学方案与构件配色，保留当前镜头与剖切状态。
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER WORKSPACE: SUB-TOOLBAR + 3D/2D VIEWPORT + FLOATING HUD -->
+    <main class="flex-1 flex flex-col min-w-0 relative bg-[#e9e9e6]">
+
+      <!-- Secondary Sub-Toolbar -->
+      <div class="h-10 bg-white/95 border-b border-gray-200 px-3 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center gap-2">
+          <!-- Camera / Space Jump Select -->
+          <div class="relative flex items-center">
+            <select id="cameraPresetSelect" aria-label="镜头视角选择" class="text-xs bg-gray-100 hover:bg-gray-200/70 text-gray-700 font-medium rounded-md px-2.5 py-1 pr-6 border border-gray-200 focus:outline-none">
+              <option value="all">整体 / 自由视角</option>
+            </select>
+          </div>
+          <span class="text-[11px] text-gray-400 hidden md:inline" id="domainSubtitleBanner">
+            支持左键旋转 · 右键平移 · 滚轮缩放 · 点击构件查看空间拓扑与设计参数
+          </span>
+        </div>
+
+        <!-- Right: ARCTIC / SHADED / MATERIAL Render Switch -->
+        <div class="flex items-center gap-2">
+          <div class="flex items-center bg-gray-100 p-0.5 rounded-md border border-gray-200 text-[10px] font-semibold tracking-wider">
+            <button id="renderBtn-arctic" data-render="arctic" class="render-tab px-2 py-0.5 rounded text-gray-500 hover:text-gray-800 transition">ARCTIC</button>
+            <button id="renderBtn-shaded" data-render="shaded" class="render-tab px-2 py-0.5 rounded text-gray-500 hover:text-gray-800 transition">SHADED</button>
+            <button id="renderBtn-material" data-render="material" class="render-tab px-2 py-0.5 rounded bg-white text-gray-900 shadow-sm transition">MATERIAL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEWPORT CONTAINER -->
+      <div id="viewportWrapper" class="flex-1 relative overflow-hidden">
+        <!-- 3D WebGL Canvas Container -->
+        <div id="threeContainer" class="w-full h-full relative cursor-grab active:cursor-grabbing"></div>
+
+        <!-- 3D Floating HTML Space Labels Container -->
+        <div id="labelsOverlay" class="absolute inset-0 pointer-events-none overflow-hidden z-10"></div>
+
+        <!-- 2D Floor Plan / Blueprint Interactive Canvas Overlay (Shown when viewMode === 'plan') -->
+        <div id="plan2dOverlay" class="absolute inset-0 bg-[#f7f7f5] z-15 hidden flex-col">
+          <canvas id="plan2dCanvas" class="w-full h-full cursor-pointer"></canvas>
+          <!-- Top-right CAD Overlay Slider inside 2D Mode -->
+          <div class="absolute top-4 right-4 glass-panel rounded-xl p-3 w-52 shadow-sm z-20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-gray-700">原始图纸轴网</span>
+              <input type="checkbox" id="toggleCadGrid" checked class="rounded text-emerald-700 focus:ring-0">
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-gray-500 mb-1">
+              <span>蓝图标注叠加</span>
+              <span id="cadOpacityVal">85%</span>
+            </div>
+            <input type="range" id="sliderCadOpacity" min="0" max="100" value="85" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+          </div>
+        </div>
+
+        <!-- TOP-LEFT HUD TITLE (Matches Screenshot: STYLE 01 / MATERIAL + View Title) -->
+        <div class="absolute top-4 left-5 pointer-events-none z-20">
+          <div id="hudStyleTag" class="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">STYLE 01 / MATERIAL</div>
+          <div id="hudViewTitle" class="text-lg font-bold text-gray-800 tracking-tight mt-0.5">3D Perspective</div>
+          <div id="hudViewSub" class="text-xs text-gray-500">中古现代 · 整体模型浏览</div>
+        </div>
+
+        <!-- TOP-RIGHT FLOATING VIEWER CONTROLS (Matches Screenshot 1, 3, 4) -->
+        <div id="rightViewerControls" class="absolute top-4 right-4 glass-panel rounded-xl p-3.5 w-52 shadow-sm space-y-2.5 z-20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-700 font-medium">空间名称</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggleSpaceNames" class="sr-only peer" checked>
+              <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-700 font-medium">交通流线</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggleFlowLines" class="sr-only peer" checked>
+              <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between">
+            <span id="labelToggleRoof" class="text-xs text-gray-700 font-medium">显示顶面</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggleRoofTop" class="sr-only peer">
+              <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between">
+            <span id="labelToggleDoors" class="text-xs text-gray-700 font-medium">开启平开门</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggleOpenDoors" class="sr-only peer" checked>
+              <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+            </label>
+          </div>
+
+          <div class="pt-1.5 border-t border-gray-200/80">
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span id="labelWallCut" class="text-gray-600 font-medium">墙体剖切</span>
+              <span id="wallCutValueText" class="font-mono text-[11px] text-emerald-800 font-semibold">2.60 m</span>
+            </div>
+            <input type="range" id="sliderWallCut" min="0.3" max="3.2" step="0.05" value="2.60" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+          </div>
+        </div>
+
+        <!-- BOTTOM-LEFT SELECTED SPACE CARD (Matches Screenshot 1 & 2) -->
+        <div id="selectedSpaceCard" class="absolute bottom-4 left-5 glass-panel rounded-xl p-4 w-72 shadow-md z-20 transition-all">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">SELECTED SPACE</span>
+            <button id="btnCloseSpaceCard" class="text-gray-400 hover:text-gray-700 text-xs px-1" title="收起详情">✕</button>
+          </div>
+          <div class="flex items-baseline gap-2 mb-1.5">
+            <h3 id="cardSpaceName" class="text-base font-bold text-gray-900">餐厅</h3>
+            <span id="cardSpaceEn" class="text-xs text-gray-400">Dining Room</span>
+            <span id="cardSpaceArea" class="ml-auto text-[11px] font-mono bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">18.5 ㎡</span>
+          </div>
+          <p id="cardSpaceDesc" class="text-xs text-gray-600 leading-relaxed mb-3">
+            六人餐桌与西厨岛台形成洄游动线，内侧连接厨房与玄关过渡区，兼顾日常用餐与社交聚会。
+          </p>
+          <div id="cardConnectedBlock" class="space-y-1.5">
+            <div class="text-[10px] text-gray-400 font-medium">流线相邻空间（点击跳转）：</div>
+            <div id="cardConnectedLinks" class="flex flex-wrap gap-1">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- WALKTHROUGH D-PAD OVERLAY (Visible prominently in Walkthrough or on click) -->
+        <div id="walkControlsOverlay" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+          <div class="flex items-center gap-1">
+            <button id="btnWalkForward" class="w-8 h-8 rounded-lg glass-panel shadow flex items-center justify-center text-gray-700 hover:bg-white active:scale-95 text-xs font-bold" title="前进 (W / ↑)">↑</button>
+          </div>
+          <div class="flex items-center gap-1">
+            <button id="btnWalkLeft" class="w-8 h-8 rounded-lg glass-panel shadow flex items-center justify-center text-gray-700 hover:bg-white active:scale-95 text-xs font-bold" title="左移 (A / ←)">←</button>
+            <button id="btnWalkBack" class="w-8 h-8 rounded-lg glass-panel shadow flex items-center justify-center text-gray-700 hover:bg-white active:scale-95 text-xs font-bold" title="后退 (S / ↓)">↓</button>
+            <button id="btnWalkRight" class="w-8 h-8 rounded-lg glass-panel shadow flex items-center justify-center text-gray-700 hover:bg-white active:scale-95 text-xs font-bold" title="右移 (D / →)">→</button>
+          </div>
+          <div class="text-[10px] text-gray-500 bg-white/80 px-2 py-0.5 rounded-full border border-gray-200 shadow-sm mt-0.5">
+            WASD / 方向键漫游 · 鼠标拖拽环视
+          </div>
+        </div>
+
+        <!-- BOTTOM-RIGHT LIGHTING & CAMERA RESET (Matches Screenshot) -->
+        <div id="bottomRightControls" class="absolute bottom-4 right-4 flex flex-col items-end gap-2 z-20">
+          <!-- Lighting Popover Panel -->
+          <div id="lightingPopover" class="glass-panel rounded-xl p-3 w-56 shadow-md hidden space-y-2.5">
+            <div class="flex items-center justify-between text-xs font-semibold text-gray-700">
+              <span>太阳高度与日照时刻</span>
+              <span id="sunTimeLabel" class="font-mono text-amber-700">14:30</span>
+            </div>
+            <input type="range" id="sliderSunTime" min="6" max="22" step="0.5" value="14.5" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <div class="flex items-center justify-between text-xs text-gray-600">
+              <span>环境光强度</span>
+              <span id="ambientValLabel" class="font-mono">100%</span>
+            </div>
+            <input type="range" id="sliderAmbient" min="30" max="150" step="5" value="100" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button id="btnToggleLighting" class="glass-panel px-3 py-1.5 rounded-lg shadow-sm text-xs font-medium text-gray-700 hover:bg-white flex items-center gap-1.5">
+              <span>☀ 光影 / LIGHTING</span>
+            </button>
+            <button id="btnResetCamera" class="glass-panel w-8 h-8 rounded-lg shadow-sm flex items-center justify-center text-gray-700 hover:bg-white" title="重置相机视角">
+              ↻
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM STATUS BAR -->
+      <footer class="h-7 bg-white border-t border-gray-200 px-3 flex items-center justify-between text-[11px] text-gray-500 shrink-0 z-20">
+        <div class="flex items-center gap-2 truncate">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+          <span id="footerHintText">左键旋转 · 右键平移 · 滚轮缩放 · 点击空间或建筑构件查看参数关系</span>
+        </div>
+        <div class="flex items-center gap-3 font-mono text-[10px] text-gray-400 shrink-0">
+          <span id="footerScaleText">1 px ≈ 14 mm</span>
+          <span>|</span>
+          <span id="footerUnitText">单位 m</span>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- MODAL 1: MULTI-STYLE REFERENCE & FURNITURE/MATERIAL BOARD (Matches Screenshot 3) -->
+  <div id="moodboardModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[86vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-gray-900">多风格参考图板与构件选型库 (Reference & Design Language Board)</h2>
+          <p class="text-xs text-gray-500 mt-0.5">点击任意风格方案即可实时驱动 3D 场景材质、构件色彩、灯光氛围与设计语言转换</p>
+        </div>
+        <button id="btnCloseMoodboard" class="text-gray-400 hover:text-gray-700 text-sm px-2 py-1 rounded">✕ 关闭</button>
+      </div>
+      <div id="moodboardBody" class="p-5 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50">
+        <!-- Populated dynamically based on current domain -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: AI 3D INTERACTIVE WEB PAGE PROMPT & WORKFLOW GENERATOR -->
+  <div id="promptModal" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-3xl w-full max-h-[86vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-gray-900">3D空间交互网页 · 多领域 AI 提示词与两阶段开发工坊</h2>
+          <p class="text-xs text-gray-500 mt-0.5">复刻原视频「第一阶段 Base Model 搭建 + 第二阶段多风格布置与交互升级」完整提示词模板</p>
+        </div>
+        <button id="btnClosePromptModal" class="text-gray-400 hover:text-gray-700 text-sm px-2 py-1 rounded">✕ 关闭</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs text-gray-700 leading-relaxed">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-emerald-950">
+          <div class="font-bold mb-1">💡 核心工作流拆解（为什么分两阶段生成效果最好？）</div>
+          <p>直接让大模型一次性写出复杂的3D户型/城市模型往往会丢失交互控件或空间拓扑关系。最佳实践是采用<strong>「两阶段渐进式提示法」</strong>：第一阶段先锁定空间拓扑、尺寸比例与五大基础视角（透视/轴测/俯视/平面/漫游）；第二阶段注入三套参考风格的材质色板、家具构件、墙体剖切与顶面开关。</p>
+        </div>
+
+        <div class="space-y-3" id="promptTemplatesList">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastBanner" class="fixed top-16 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50 hidden pointer-events-none">
+    已保存当前布局状态
+  </div>
+
+  <script>
+    /********************************************************************
+     * 1. MULTI-DOMAIN DATA DEFINITIONS (室内 / 建筑 / 城市规划 / 数字文旅)
+     ********************************************************************/
+    const DOMAIN_CONFIGS = {
+      interior: {
+        id: 'interior',
+        name: '室内空间设计',
+        subtitle: '全屋12大功能区 · 墙体高度剖切 · 第一人称尺度漫游 · 4套软装风格即时切换',
+        scaleText: '1 px ≈ 14 mm',
+        unitText: '单位 m',
+        cutLabel: '墙体剖切',
+        cutMin: 0.3,
+        cutMax: 3.0,
+        cutDefault: 2.55,
+        roofLabel: '显示顶面',
+        doorLabel: '开启平开门',
+        layerStructName: '建筑结构层',
+        layerStructDesc: '墙体 · 梁柱 · 门窗 · 阳台边界',
+        layerDesignName: '室内设计层',
+        layerDesignDesc: '家具软装 · 灯具饰品 · 定制柜体',
+        styles: [
+          {
+            id: 'base', code: 'BASE', name: '基础空间', desc: '建筑白模与体块基底',
+            swatches: ['#e5e7eb', '#9ca3af', '#4b5563'],
+            floorColor: 0xe6e4e0, wallColor: 0xf5f5f3, accentColor: 0x9ca3af, woodColor: 0xd6d3cd, fabricColor: 0xe5e7eb, metalColor: 0x6b7280,
+            moodDesc: '纯粹素模推敲空间尺度、采光面与洄游动线，排除色彩干扰。',
+            furnitureList: ['基础体块沙发组', '标准6人餐桌体块', '双人床垫与衣柜体块', '功能区流线标尺']
+          },
+          {
+            id: 'style1', code: 'STYLE 01', name: '中古现代', desc: '胡桃木 · 暖米白 · 橄榄绿',
+            swatches: ['#6e472b', '#e7dec8', '#222222'],
+            floorColor: 0xd8c3a5, wallColor: 0xf4efe6, accentColor: 0x5c7457, woodColor: 0x6e472b, fabricColor: 0xe8dfd1, metalColor: 0x2b2927,
+            moodDesc: '温润焦糖胡桃木结合米白肌理墙面、橄榄绿软装抱枕与经典中古家具线条。',
+            furnitureList: ['焦糖黑皮与胡桃木模块沙发', '中古圆润实木六人餐桌', '橄榄绿搭毯皮革靠背双人床', '藤编展示柜与暖光钓鱼灯']
+          },
+          {
+            id: 'style2', code: 'STYLE 02', name: '包豪斯趣味现代', desc: '红黄蓝原色 · 铬钢 · 几何感',
+            swatches: ['#1d4ed8', '#eab308', '#dc2626'],
+            floorColor: 0xdedede, wallColor: 0xfafaf9, accentColor: 0xdc2626, woodColor: 0x2563eb, fabricColor: 0xfacc15, metalColor: 0x334155,
+            moodDesc: '致敬瓦西里钢管家具与蒙德里安三原色构成，鲜明几何色块点亮现代生活空间。',
+            furnitureList: ['克莱因蓝模块化绒面沙发', '柠檬黄Z字造型单椅', '包豪斯红黑几何边柜', '极简铬钢玻璃圆桌']
+          },
+          {
+            id: 'style3', code: 'STYLE 03', name: '现代简约高级', desc: '深灰岩板 · 勃艮第红 · 烟熏木',
+            swatches: ['#b8afa6', '#5c1d24', '#1f1d1b'],
+            floorColor: 0x9e9a95, wallColor: 0xeceae6, accentColor: 0x6e262e, woodColor: 0x3a2e28, fabricColor: 0xc7c2bc, metalColor: 0x18181b,
+            moodDesc: '低饱和度烟熏橡木与哑光灰岩板，点缀深邃勃艮第酒红单椅，呈现静谧奢华质感。',
+            furnitureList: ['意式低趴浅灰麻布转角沙发', '勃艮第红雕塑感单人休闲椅', '烟熏黑橡木岛台连餐桌', '悬浮极简暗藏灯带床架']
+          }
+        ],
+        spaces: [
+          { id: '01', name: '客厅', en: 'Living Room', area: '26.4 ㎡', x: 1.5, z: 3.8, w: 4.8, d: 4.2, h: 2.8, type: 'living', connected: ['02', '03', '04'], desc: '大面宽落地窗引入充沛南向采光，模块化沙发围绕中心地毯展开，与多功能区及餐厅无界互通。' },
+          { id: '02', name: '多功能区', en: 'Multi-purpose Zone', area: '14.2 ㎡', x: -3.2, z: 3.8, w: 3.6, d: 4.2, h: 2.8, type: 'study', connected: ['01', '08', '10'], desc: '开放式阅读与冥想工作区，兼作家庭社交延伸空间，长书桌背靠定制满墙书架。' },
+          { id: '03', name: '餐厅', en: 'Dining Room', area: '16.8 ㎡', x: 1.2, z: -0.4, w: 3.8, d: 3.4, h: 2.8, type: 'dining', connected: ['01', '04', '05'], desc: '六人餐桌与西厨岛台按原则就位，内侧连接厨房，形成高效洄游家政与社交动线。' },
+          { id: '04', name: '玄关', en: 'Entrance Foyer', area: '7.5 ㎡', x: 4.5, z: -0.4, w: 2.2, d: 3.4, h: 2.8, type: 'foyer', connected: ['03', '01', '12'], desc: '入户缓冲门厅，配备悬浮换鞋凳与通顶收纳柜，视线通过端景艺术画自然折入餐厅。' },
+          { id: '05', name: '厨房', en: 'Kitchen', area: '11.0 ㎡', x: -2.0, z: -0.4, w: 2.4, d: 3.4, h: 2.8, type: 'kitchen', connected: ['03', '08'], desc: 'U型高效操作台面，嵌入洗碗机与双开门冰箱，联动餐厅岛台满足中西厨双模式。' },
+          { id: '06', name: '次卧（一）', en: 'Guest Bedroom', area: '15.6 ㎡', x: -6.2, z: -0.2, w: 3.4, d: 3.8, h: 2.8, type: 'bedroom', connected: ['07', '08'], desc: '静谧客卧套间，配备1.8米双人床与阅读床头灯，大窗朝向西侧庭院景观。' },
+          { id: '07', name: '公卫', en: 'Common Bath', area: '5.8 ㎡', x: -3.8, z: -0.4, w: 1.4, d: 3.0, h: 2.8, type: 'bath', connected: ['08', '06'], desc: '干湿分离三段式公卫，采用壁挂马桶与通长镜柜，服务次卧与公共活动区。' },
+          { id: '08', name: '中央过道', en: 'Central Gallery', area: '8.4 ㎡', x: -3.5, z: 1.4, w: 3.0, d: 1.2, h: 2.8, type: 'corridor', connected: ['02', '03', '06', '07', '09'], desc: '串联动静分区的艺术走廊，消除传统狭长走道压抑感，端头对景主卧私密门厅。' },
+          { id: '09', name: '主卧室', en: 'Master Suite', area: '22.0 ㎡', x: -2.2, z: -4.2, w: 4.2, d: 3.6, h: 2.8, type: 'master', connected: ['08', '10', '11', '12'], desc: '高舒适度主卧睡眠区，转角全景玻璃幕墙配双层柔纱帘，床尾衔接步入式衣帽间。' },
+          { id: '10', name: '衣帽间', en: 'Walk-in Closet', area: '9.2 ㎡', x: -6.0, z: 3.6, w: 2.2, d: 3.8, h: 2.8, type: 'closet', connected: ['02', '09'], desc: '双排通顶玻璃柜门衣帽间，内置感应暖光灯带与首饰中岛台。' },
+          { id: '11', name: '主卫', en: 'Master Bathroom', area: '10.5 ㎡', x: -5.8, z: -4.2, w: 2.8, d: 3.6, h: 2.8, type: 'bath', connected: ['09'], desc: '酒店级双台盆主卫，配置独立观景浴缸与恒温淋浴房。' },
+          { id: '12', name: '健身露台', en: 'Fitness Terrace', area: '19.5 ㎡', x: 2.2, z: -4.2, w: 4.6, d: 3.6, h: 2.8, type: 'terrace', connected: ['09', '04'], desc: '半开放式阳光健身活动平台，器械为跑步机与力量训练器，北侧通透采光，串联主卧与前室。' }
+        ]
+      },
+
+      arch: {
+        id: 'arch',
+        name: '建筑单体表现',
+        subtitle: '当代艺术中心单体建筑 · 楼层垂直剖切 · 幕墙表皮展开 · 室内外空间漫游',
+        scaleText: '1 px ≈ 85 mm',
+        unitText: '单位 m',
+        cutLabel: '建筑层高剖切',
+        cutMin: 0.4,
+        cutMax: 3.2,
+        cutDefault: 2.85,
+        roofLabel: '显示屋顶天幕',
+        doorLabel: '展开表皮百叶',
+        layerStructName: '主体结构与核心筒',
+        layerStructDesc: '剪力墙核心筒 · 钢结构桁架 · 楼板体系',
+        layerDesignName: '幕墙表皮与景观层',
+        layerDesignDesc: '参数化遮阳百叶 · 超白玻幕墙 · 屋顶花园',
+        styles: [
+          {
+            id: 'base', code: 'BASE', name: '体块推敲', desc: '纯白建筑手工模型感',
+            swatches: ['#f3f4f6', '#d1d5db', '#6b7280'],
+            floorColor: 0xe5e5e2, wallColor: 0xf7f7f5, accentColor: 0x9ca3af, woodColor: 0xd1d5db, fabricColor: 0xe5e7eb, metalColor: 0x6b7280,
+            moodDesc: '聚焦建筑体量穿插、悬挑比例与光影形体关系，呈现安藤式纯粹体块。',
+            furnitureList: ['悬挑展览盒子体块', '核心筒垂直交通体', '退台式室外剧场阶梯', '屋顶采光天窗阵列']
+          },
+          {
+            id: 'style1', code: 'STYLE 01', name: '清水混凝土极简', desc: '素混凝土 · 超白玻璃 · 浅水池',
+            swatches: ['#9ca3af', '#cbd5e1', '#1e293b'],
+            floorColor: 0xcbd5e1, wallColor: 0xd6d6d2, accentColor: 0x38bdf8, woodColor: 0x64748b, fabricColor: 0x94a3b8, metalColor: 0x1e293b,
+            moodDesc: '美术馆级清水混凝土肌理搭配通透超白玻璃幕墙，环绕静水面形成建筑倒影。',
+            furnitureList: ['现浇清水混凝土剪力墙', '超白夹胶双银Low-E幕墙', '入口镜面水池与汀步', '极简钢结构挑檐']
+          },
+          {
+            id: 'style2', code: 'STYLE 02', name: '暖木格栅生态', desc: '红雪松木百叶 · 垂直绿洲 · 暖石材',
+            swatches: ['#9a5b32', '#4d7c5d', '#e6dfd5'],
+            floorColor: 0xdccfbe, wallColor: 0xf2ece1, accentColor: 0x3f7a52, woodColor: 0x9a5b32, fabricColor: 0x65a30d, metalColor: 0x44403c,
+            moodDesc: '隈研吾式温暖木构格栅表皮结合层层退台空中花园，让建筑自然生长于环境之中。',
+            furnitureList: ['防腐红雪松遮阳百叶系统', '多级空中花园绿植池', '石灰华暖色石材基座', '雨水花园生态驳岸']
+          },
+          {
+            id: 'style3', code: 'STYLE 03', name: '高技派参数化幕墙', desc: '阳极氧化铝 · 钛金铜 · 科技蓝光',
+            swatches: ['#334155', '#d97706', '#0284c7'],
+            floorColor: 0x94a3b8, wallColor: 0xe2e8f0, accentColor: 0x0284c7, woodColor: 0xb45309, fabricColor: 0x38bdf8, metalColor: 0x0f172a,
+            moodDesc: '外露钢结构斜交网格与香槟金阳极氧化铝遮阳翼片，展现当代高技派建筑张力。',
+            furnitureList: ['双曲阳极氧化铝参数化百叶', '斜交网格外露钢桁架', '光伏一体化玻璃采光顶', '夜间泛光LED媒体立面']
+          }
+        ],
+        spaces: [
+          { id: '01', name: '主入口挑空大堂', en: 'Grand Atrium Lobby', area: '680 ㎡', x: 0, z: 3.5, w: 5.2, d: 3.6, h: 2.9, type: 'lobby', connected: ['02', '03', '06'], desc: '12米通高艺术中庭，顶部天窗引入漫射自然光，旋转坡道自大厅中央盘旋而上。' },
+          { id: '02', name: '西翼悬挑展厅', en: 'Cantilever Gallery W', area: '520 ㎡', x: -4.6, z: 1.2, w: 3.8, d: 5.0, h: 2.9, type: 'gallery', connected: ['01', '04', '07'], desc: '无柱大跨度当代艺术主展厅，向外悬挑6.5米，下方形成灰空间城市广场。' },
+          { id: '03', name: '东翼数字演艺厅', en: 'Blackbox Auditorium', area: '490 ㎡', x: 4.6, z: 1.2, w: 3.8, d: 5.0, h: 2.9, type: 'theater', connected: ['01', '05', '08'], desc: '声学浮筑黑匣子剧场，支持沉浸式学术报告、先锋戏剧与声光艺术展演。' },
+          { id: '04', name: '北侧恒温典藏库', en: 'Archive Vault', area: '340 ㎡', x: -3.2, z: -3.4, w: 4.2, d: 3.2, h: 2.7, type: 'vault', connected: ['02', '05'], desc: '高气密恒温恒湿文物与艺术品典藏空间，厚重体量构成建筑北向稳固基座。' },
+          { id: '05', name: '后勤与货运核心筒', en: 'Service Core', area: '310 ㎡', x: 2.8, z: -3.4, w: 4.0, d: 3.2, h: 3.1, type: 'core', connected: ['03', '04', '08'], desc: '整合大型艺术品货梯、消防疏散梯与机电管井的垂直结构核心。' },
+          { id: '06', name: '入口镜面水院', en: 'Reflecting Water Court', area: '450 ㎡', x: 0, z: 6.2, w: 8.6, d: 1.8, h: 0.6, type: 'water', connected: ['01'], desc: '30厘米浅水镜面水景环绕主入口，缓和城市喧嚣并形成纯净建筑倒影。' },
+          { id: '07', name: '二层空中雕塑露台', en: 'Sky Sculpture Deck', area: '380 ㎡', x: -4.6, z: 5.0, w: 3.6, d: 2.4, h: 1.8, type: 'terrace', connected: ['02', '01'], desc: '面朝城市公园的户外雕塑展场，参观者可在此远眺城市天际线。' },
+          { id: '08', name: '艺术书店与咖啡厅', en: 'Art Bookshop & Cafe', area: '290 ㎡', x: 4.6, z: 5.0, w: 3.6, d: 2.4, h: 2.0, type: 'cafe', connected: ['01', '03'], desc: '沿街全通透玻璃界面，闭馆后仍可独立向市民开放的夜间文化客厅。' }
+        ]
+      },
+
+      urban: {
+        id: 'urban',
+        name: '城市规划沙盘',
+        subtitle: 'TOD未来创智片区城市设计 · 控规体块指标 · 蓝绿海绵廊道 · 轨道交通流线',
+        scaleText: '1 px ≈ 1.2 m',
+        unitText: '单位 m / hm²',
+        cutLabel: '天际线高度剖切',
+        cutMin: 0.4,
+        cutMax: 3.2,
+        cutDefault: 3.0,
+        roofLabel: '显示空中连廊',
+        doorLabel: '展开地下枢纽层',
+        layerStructName: '城市路网与蓝绿基底',
+        layerStructDesc: '主次干道 · 滨水驳岸 · 地块红线与绿地',
+        layerDesignName: '建筑体块与空中连廊',
+        layerDesignDesc: '超高层塔楼 · 产业园群落 · 二层慢行系统',
+        styles: [
+          {
+            id: 'base', code: 'BASE', name: '控规白模基底', desc: '容积率与高度控制模型',
+            swatches: ['#e5e7eb', '#9ca3af', '#374151'],
+            floorColor: 0xdfe2e6, wallColor: 0xf8fafc, accentColor: 0x64748b, woodColor: 0xcbd5e1, fabricColor: 0xe2e8f0, metalColor: 0x475569,
+            moodDesc: '标准城市规划汇报白模，清晰表达建筑密度、退线红线与天际线梯度。',
+            furnitureList: ['220m地标双子塔体块', '阶梯式退台研发楼群', '十字生态绿轴廊道', 'TOD站点换乘核']
+          },
+          {
+            id: 'style1', code: 'STYLE 01', name: '生态韧性海绵城市', desc: '翡翠绿谷 · 碧水廊道 · 零碳屋顶',
+            swatches: ['#15803d', '#0ea5e9', '#f0fdf4'],
+            floorColor: 0xd9e8dc, wallColor: 0xf4fbf7, accentColor: 0x0ea5e9, woodColor: 0x16a34a, fabricColor: 0x4ade80, metalColor: 0x0f766e,
+            moodDesc: '突出蓝绿交织的海绵城市基础设施，雨水湿地公园渗透率达75%以上。',
+            furnitureList: ['中央雨水调蓄湿地公园', '立体垂直森林塔楼', '透水铺装慢行绿道网', '滨水亲水活力栈道']
+          },
+          {
+            id: 'style2', code: 'STYLE 02', name: '高密度TOD立体城', desc: '琥珀金光 · 轨道枢纽 · 商业活力',
+            swatches: ['#d97706', '#1e293b', '#38bdf8'],
+            floorColor: 0xd6d3cd, wallColor: 0xf1f5f9, accentColor: 0xd97706, woodColor: 0xf59e0b, fabricColor: 0x0284c7, metalColor: 0x1e293b,
+            moodDesc: '强化三线换乘TOD核心商圈的高强度复合开发，全天候二层连廊串联办公与商业。',
+            furnitureList: ['双子超高层金融总部', '全天候跨街空中连廊环', '下沉式地铁商业广场', '智慧立体公交首末站']
+          },
+          {
+            id: 'style3', code: 'STYLE 03', name: '产城融合低碳示范', desc: '暖陶土红 · 创智坊巷 · 历史共生',
+            swatches: ['#b45309', '#475569', '#a16207'],
+            floorColor: 0xe5ddd3, wallColor: 0xfaf6f0, accentColor: 0xc2410c, woodColor: 0x9a3412, fabricColor: 0xd97706, metalColor: 0x334155,
+            moodDesc: '兼顾工业遗产红砖风貌保护与现代科创园区肌理，营造宜居宜业的街区尺度。',
+            furnitureList: ['红砖工业遗存改造文创园', '院落式低密研发总部', '青年人才共享公寓社区', '分布式屋顶光伏矩阵']
+          }
+        ],
+        spaces: [
+          { id: '01', name: 'TOD中央商务核心区', en: 'TOD CBD Twin Towers', area: 'FAR 8.5 | 220m', x: 0, z: -1.5, w: 3.8, d: 3.4, h: 3.1, type: 'tower', connected: ['02', '03', '05'], desc: '双轨交汇上盖220米超高层双子塔地标，集甲级办公、云端酒店与空中观景厅于一体。' },
+          { id: '02', name: '滨水生态文化带', en: 'Waterfront Eco Belt', area: '绿地率 68%', x: 0, z: 2.0, w: 12.8, d: 2.2, h: 0.5, type: 'river', connected: ['01', '03', '04', '06'], desc: '贯穿片区东西的中央生态水轴，结合多级生态草坡驳岸与水上文化驿站。' },
+          { id: '03', name: '智慧科创产业园', en: 'Tech Innovation Hub', area: 'FAR 4.2 | 80m', x: -4.6, z: -1.8, w: 3.8, d: 3.6, h: 2.1, type: 'campus', connected: ['01', '02', '07'], desc: '围合院落式人工智能与数字经济研发组团，首层架空形成全天候创客交流街区。' },
+          { id: '04', name: '历史风貌保护街区', en: 'Heritage Lane Block', area: 'FAR 1.6 | 18m', x: -4.5, z: 4.6, w: 4.0, d: 3.0, h: 1.1, type: 'heritage', connected: ['02', '06'], desc: '保留传统里弄街巷肌理与老厂房工业遗存，植入精品设计工作室与非遗展览。' },
+          { id: '05', name: '城市轨道交通枢纽', en: 'Metro Transit Hub', area: '日客流 18万人次', x: 4.6, z: -1.8, w: 3.8, d: 3.6, h: 1.7, type: 'hub', connected: ['01', '02', '08'], desc: '高铁城际与两条地铁线立体换乘大厅，通过屋顶花园消化大尺度的交通建筑体量。' },
+          { id: '06', name: '滨水市民大剧院', en: 'Civic Waterfront Opera', area: 'FAR 2.0 | 36m', x: 0.2, z: 4.8, w: 3.6, d: 2.8, h: 1.5, type: 'opera', connected: ['02', '04', '08'], desc: '依水而建的城市文化地标，流线型屋面向市民广场延展，可作为户外音乐看台。' },
+          { id: '07', name: '国际人才生态社区', en: 'Talent Living Quarter', area: 'FAR 3.0 | 60m', x: -4.6, z: -5.2, w: 3.8, d: 2.4, h: 2.0, type: 'residential', connected: ['03', '01'], desc: '15分钟社区生活圈示范组团，配建社区托育、生鲜市集与屋顶环形跑道。' },
+          { id: '08', name: '未来能源与数字中心', en: 'Smart Grid Center', area: 'FAR 3.8 | 75m', x: 4.6, z: 4.8, w: 3.6, d: 2.8, h: 1.9, type: 'tech', connected: ['05', '06'], desc: '片区智慧大脑与区域集中供冷能源站，立面集成呼吸式光伏百叶系统。' }
+        ]
+      },
+
+      tourism: {
+        id: 'tourism',
+        name: '数字文旅漫游',
+        subtitle: '千年古镇与飞檐楼阁数字孪生 · 古建结构拆解 · 夜游光影水舞 · 沉浸式导览',
+        scaleText: '1 px ≈ 120 mm',
+        unitText: '单位 m',
+        cutLabel: '古建剖切高度',
+        cutMin: 0.4,
+        cutMax: 3.2,
+        cutDefault: 2.9,
+        roofLabel: '显示飞檐屋顶',
+        doorLabel: '点亮花灯与城门',
+        layerStructName: '台基城垣与水系基底',
+        layerStructDesc: '青砖瓮城 · 护城河道 · 拱桥石阶与地形',
+        layerDesignName: '木构楼阁与演艺灯光层',
+        layerDesignDesc: '飞檐斗拱 · 水幕舞台 · 祈福花灯与乌篷船',
+        styles: [
+          {
+            id: 'base', code: 'BASE', name: '历史复原白模', desc: '古建测绘数字孪生基底',
+            swatches: ['#e5e7eb', '#9ca3af', '#4b5563'],
+            floorColor: 0xe2e0dc, wallColor: 0xf5f5f2, accentColor: 0x9ca3af, woodColor: 0xd6d3cd, fabricColor: 0xe5e7eb, metalColor: 0x6b7280,
+            moodDesc: '基于三维激光扫描与营造法式规制的测绘白模，清晰呈现台基、柱网与屋盖比例。',
+            furnitureList: ['重檐歇山顶主阁体块', '单孔石拱桥与水系测绘', '传统四合院落布局', '城墙马面与瓮城防线']
+          },
+          {
+            id: 'style1', code: 'STYLE 01', name: '盛唐丹青日景', desc: '朱红木构 · 青绿山水 · 琉璃金瓦',
+            swatches: ['#991b1b', '#0f766e', '#d97706'],
+            floorColor: 0xd5cec2, wallColor: 0xf5efe6, accentColor: 0xb91c1c, woodColor: 0x881337, fabricColor: 0xd97706, metalColor: 0x115e59,
+            moodDesc: '千里江山图青绿水色配朱红梁柱与金黄琉璃瓦顶，还原盛世江南水乡繁华图景。',
+            furnitureList: ['朱漆立柱与描金斗拱', '碧波曲水与摇橹画舫', '青石板古街与酒旗幌子', '古银杏与祈福红绸树']
+          },
+          {
+            id: 'style2', code: 'STYLE 02', name: '赛博国潮夜景光影', desc: '流光琥珀 · 霓虹青蓝 · 沉浸夜游',
+            swatches: ['#f59e0b', '#0284c7', '#1e1b4b'],
+            floorColor: 0x64748b, wallColor: 0xcbd5e1, accentColor: 0xf59e0b, woodColor: 0x991b1b, fabricColor: 0x38bdf8, metalColor: 0x1e1b4b,
+            moodDesc: '夜间文旅沉浸式演艺模式，建筑轮廓暖金洗墙灯与河道全息蓝紫水幕交相辉映。',
+            furnitureList: ['全息激光水幕投影剧场', '千灯万福孔明灯阵列', '古阁3D Mapping光影秀', '夜游发光画舫巡游路线']
+          },
+          {
+            id: 'style3', code: 'STYLE 03', name: '四季沉浸雪景模式', desc: '瑞雪青瓦 · 暖炉茶肆 · 留白意境',
+            swatches: ['#f8fafc', '#475569', '#c2410c'],
+            floorColor: 0xf1f5f9, wallColor: 0xffffff, accentColor: 0xea580c, woodColor: 0x475569, fabricColor: 0xf8fafc, metalColor: 0x334155,
+            moodDesc: '冬日瑞雪覆盖青瓦飞檐，檐下红灯笼与茶肆暖光透出，打造宋代山水画留白意境。',
+            furnitureList: ['覆雪重檐黛瓦屋顶', '围炉煮茶临水轩榭', '冰封河面与暖光石桥', '寒梅映雪庭院景观']
+          }
+        ],
+        spaces: [
+          { id: '01', name: '飞檐阁楼数字展厅', en: 'Grand Heritage Pavilion', area: '三层通高 | 24m', x: 0, z: -1.2, w: 4.0, d: 3.6, h: 3.0, type: 'pavilion', connected: ['02', '03', '04'], desc: '景区核心地标重檐歇山顶主阁，内部植入裸眼3D数字藏经阁与古建营造技艺互动展。' },
+          { id: '02', name: '曲水流觞玉带河', en: 'Winding Jade Canal', area: '游船航线 650m', x: 0, z: 2.2, w: 12.6, d: 2.2, h: 0.5, type: 'canal', connected: ['01', '03', '05', '06'], desc: '环抱古镇的活水景观河道，支持乘船视角漫游与水岸互动祈福河灯投放。' },
+          { id: '03', name: '古城南门瓮城遗址', en: 'Ancient City Gate', area: '明代城砖遗址', x: 0, z: 5.2, w: 5.0, d: 2.2, h: 1.9, type: 'gate', connected: ['02', '06', '07'], desc: '景区迎宾主入口，保留明代条石基座与夯土城墙断面，夜间上演迎宾开城光影盛典。' },
+          { id: '04', name: '非遗百工坊四合院', en: 'Intangible Craft Courtyard', area: '传统三进院落', x: -4.6, z: -1.2, w: 3.6, d: 3.6, h: 1.6, type: 'courtyard', connected: ['01', '02', '08'], desc: '汇聚苏绣、木版年画与古法造纸的活态非遗体验院落，游客可在线点选工坊预约体验。' },
+          { id: '05', name: '夜间光影水舞剧场', en: 'Water-Curtain Theater', area: '容纳 1200人', x: 4.6, z: -1.2, w: 3.8, d: 3.6, h: 1.4, type: 'stage', connected: ['01', '02'], desc: '依托天然水面搭建的360度全景水上实景舞台，结合升降喷泉与数字威亚演艺。' },
+          { id: '06', name: '双虹卧波古石桥', en: 'Twin Arch Stone Bridge', area: '最佳摄影打卡点', x: -2.2, z: 2.2, w: 2.2, d: 2.8, h: 1.2, type: 'bridge', connected: ['02', '03', '04'], desc: '横跨玉带河的单孔青石拱桥，桥顶视野开阔，可同时饱览主阁飞檐与两岸灯火。' },
+          { id: '07', name: '临水国风茶肆街', en: 'Riverside Tea Street', area: '18间特色铺面', x: -4.6, z: 4.8, w: 3.8, d: 2.4, h: 1.5, type: 'street', connected: ['03', '06'], desc: '前店后坊临水吊脚楼商街，提供宋代点茶、汉服妆造与数字文创印章打卡。' },
+          { id: '08', name: '云端观景悬空栈道', en: 'Cloud Cliff Walkway', area: '观景海拔 +18m', x: 4.6, z: 4.8, w: 3.6, d: 2.4, h: 2.2, type: 'walkway', connected: ['03', '05'], desc: '沿东侧山体凌空架设的木质观景台，是俯瞰整个数字文旅景区全景轴测的最佳机位。' }
+        ]
+      }
+    };
+
+    const PROMPT_TEMPLATES = [
+      {
+        title: '阶段一：生成三维空间基底与五合一相机交互 (Base Model & Viewer)',
+        badge: 'Stage 1 · 通用底层架构',
+        content: `请使用 Three.js 构建一个单文件 3D 空间交互网页（参考「BASE / 空间设计实验室」界面风格）。
+要求包含以下核心模块：
+1. 【顶部导航栏】：包含透视(Perspective)、轴测(Axonometric)、俯视(Top View)、平面(2D Floor Plan)、漫游(First-person Walkthrough) 五种浏览模式切换，以及 ARCTIC(白模)、SHADED(线框素模)、MATERIAL(材质渲染) 三种渲染模式切换。
+2. 【左侧控制面板】：包含空间目录列表（点击可定位相机并高亮对应空间）、MODEL LAYERS 模型分层开关（建筑结构层 / 室内或景观设计层）。
+3. 【右侧悬浮控制卡】：支持空间名称标签显隐、交通流线显隐、显示/隐藏顶面、开启/关闭平开门（或构件展开），以及墙体剖切高度滑块（0.3m - 3.0m 实时剖切墙体）。
+4. 【左下角空间信息卡】：点击任意 3D 房间或 2D 区域时，展示空间名称、面积指标、功能描述及相邻流线跳转标签。`
+      },
+      {
+        title: '阶段二（室内领域）：多风格软装自主补全与全屋方案切换',
+        badge: 'Stage 2 · 室内设计提示词（原视频同款）',
+        content: `请继续基于第一阶段已经完成的住宅 3D Base Model 进行第二阶段开发。
+这一阶段我希望测试你的空间理解、室内设计、自主补全、家具选择、3D 建模、交互展示以及渲染表现能力。
+我会提供三组不同风格的室内参考方向（STYLE 01 中古现代、STYLE 02 包豪斯趣味现代、STYLE 03 现代简约高级）。请不要把它们理解成机械复刻的固定模板，而是理解每一组风格背后的设计语言（色彩配比、木材与织物材质、代表性家具形态），并将其发展成三套完整的全屋设计方案。
+要求：
+- 保留第一阶段全部 Viewer 功能（墙体剖切、顶面显隐、透视/轴测/俯视/平面/WASD漫游）；
+- 左下角 DESIGN STYLE 面板可一键实时切换 BASE 与三套风格方案，且不重置当前相机角度。`
+      },
+      {
+        title: '阶段二（建筑与城市规划领域）：控规体块、天际线剖切与TOD慢行流线',
+        badge: 'Stage 2 · 建筑 / 城市规划提示词',
+        content: `请将 3D 空间交互底座扩展至【建筑单体表现】与【城市规划沙盘】领域：
+1. 在建筑单体模式下：构建包含挑空大堂、悬挑展厅、旋转坡道、退台屋顶花园与参数化遮阳百叶的当代艺术馆模型，支持层高剖切、屋顶天幕显隐与外立面百叶展开动画，提供「清水混凝土极简 / 暖木格栅生态 / 高技派参数化幕墙」三套立面方案。
+2. 在城市规划模式下：构建包含 220m 双子塔、中央滨水生态带、科创产业园、历史保护街区与轨道枢纽的 TOD 城市设计沙盘，标注容积率(FAR)与绿地率指标，支持空中连廊显隐、轨道与慢行交通流线可视化，以及「海绵城市 / 高密度TOD / 产城融合」三套规划比选方案。`
+      },
+      {
+        title: '阶段二（数字文旅领域）：古建数字孪生、飞檐拆解与日夜四时演艺切换',
+        badge: 'Stage 2 · 数字文旅提示词',
+        content: `请将 3D 空间交互底座扩展至【数字文旅景区】领域：
+构建包含重檐歇山顶主阁、明代瓮城遗址、玉带河道、双虹石拱桥、非遗四合院与水上剧场的古镇数字孪生场景。
+要求支持：
+- 飞檐屋顶一键显隐拆解（便于展示内部展陈与木构空间）；
+- 游船水路与步游动线高亮；
+- 支持切换「BASE 测绘白模」、「STYLE 01 盛唐丹青日景」、「STYLE 02 赛博国潮夜景光影（自动切换深色夜空与暖金泛光灯）」与「STYLE 03 四季沉浸雪景模式」。`
+      }
+    ];
+
+    /********************************************************************
+     * 2. APPLICATION STATE
+     ********************************************************************/
+    const state = {
+      domain: 'interior',         // 'interior' | 'arch' | 'urban' | 'tourism'
+      viewMode: 'perspective',    // 'perspective' | 'axon' | 'top' | 'plan' | 'walk'
+      renderMode: 'material',     // 'arctic' | 'shaded' | 'material'
+      styleId: 'style1',          // 'base' | 'style1' | 'style2' | 'style3'
+      selectedSpaceId: '03',      // default '03' (餐厅)
+      showStructureLayer: true,
+      showDesignLayer: true,
+      showSpaceNames: true,
+      showFlowLines: true,
+      showRoof: false,
+      openDoors: true,
+      wallCutHeight: 2.55,
+      sunTime: 14.5,
+      ambientPercent: 100,
+      cadGrid: true,
+      cadOpacity: 85
+    };
+
+    /********************************************************************
+     * 3. THREE.JS ENGINE SETUP
+     ********************************************************************/
+    const container = document.getElementById('threeContainer');
+    const labelsOverlay = document.getElementById('labelsOverlay');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe9e9e6);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+    scene.add(ambientLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xd6d3cd, 0.45);
+    hemiLight.position.set(0, 30, 0);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfffbf0, 0.85);
+    dirLight.position.set(14, 24, 16);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = 80;
+    const d = 16;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    dirLight.shadow.bias = -0.0005;
+    scene.add(dirLight);
+
+    // Scene Groups
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    const structureGroup = new THREE.Group();
+    const designGroup = new THREE.Group();
+    const roofGroup = new THREE.Group();
+    const flowGroup = new THREE.Group();
+    const highlightGroup = new THREE.Group();
+    worldGroup.add(structureGroup, designGroup, roofGroup, flowGroup, highlightGroup);
+
+    // Collections for dynamic updates
+    let cuttableWalls = [];
+    let animatedDoors = [];
+    let interactivePickMeshes = [];
+    let spaceLabelElements = [];
+
+    // Camera Orbit / Walkthrough Controller State
+    const camCtrl = {
+      target: new THREE.Vector3(0, 0.5, 0),
+      spherical: { radius: 19.5, phi: 0.88, theta: 0.65 },
+      targetSpherical: { radius: 19.5, phi: 0.88, theta: 0.65 },
+      targetLookAt: new THREE.Vector3(0, 0.5, 0),
+      walkPos: new THREE.Vector3(1.2, 1.55, 1.8),
+      walkYaw: 0.3,
+      walkPitch: -0.05,
+      isDragging: false,
+      dragButton: 0,
+      lastX: 0,
+      lastY: 0,
+      keys: { w: false, a: false, s: false, d: false, shift: false }
+    };
+
+    /********************************************************************
+     * 4. PROCEDURAL SCENE BUILDER FOR ALL 4 DOMAINS
+     ********************************************************************/
+    /**
+     * 递归释放材质与贴图。
+     * makeMaterial() 每次切换领域 / 风格 / 渲染模式都会新建材质，
+     * 旧代码只 dispose 了 geometry，材质留在显存里，反复切换会持续涨显存直到掉帧。
+     */
+    function disposeMaterial(mat) {
+      if (!mat) return;
+      Object.keys(mat).forEach((key) => {
+        const value = mat[key];
+        if (value && value.isTexture && typeof value.dispose === 'function') {
+          value.dispose();
+        }
+      });
+      if (typeof mat.dispose === 'function') mat.dispose();
+    }
+
+    function disposeObject(obj) {
+      if (!obj) return;
+      // 先递归子树（addEdgesIfNeeded 会把轮廓线挂成 mesh 的子节点）
+      obj.children.slice().forEach(disposeObject);
+      if (obj.geometry && typeof obj.geometry.dispose === 'function') obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach(disposeMaterial);
+        else disposeMaterial(obj.material);
+      }
+    }
+
+    function clearGroup(group) {
+      while (group.children.length > 0) {
+        const child = group.children[0];
+        group.remove(child);
+        disposeObject(child);
+      }
+    }
+
+    function getActiveStyleObj() {
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      return domCfg.styles.find(s => s.id === state.styleId) || domCfg.styles[0];
+    }
+
+    function makeMaterial(baseColorHex, opts = {}) {
+      if (state.renderMode === 'arctic') {
+        return new THREE.MeshStandardMaterial({
+          color: opts.isGlass ? 0xdbeafe : 0xf4f4f1,
+          roughness: 0.88,
+          metalness: 0.04,
+          transparent: Boolean(opts.transparent || opts.isGlass),
+          opacity: opts.isGlass ? 0.38 : (opts.opacity !== undefined ? opts.opacity : 1)
+        });
+      }
+      if (state.renderMode === 'shaded') {
+        return new THREE.MeshStandardMaterial({
+          color: opts.isGlass ? 0xbfdbfe : baseColorHex,
+          roughness: 0.75,
+          metalness: 0.1,
+          wireframe: Boolean(opts.wireframeOnly),
+          transparent: Boolean(opts.transparent || opts.isGlass),
+          opacity: opts.isGlass ? 0.45 : (opts.opacity !== undefined ? opts.opacity : 1)
+        });
+      }
+      // MATERIAL mode
+      return new THREE.MeshStandardMaterial({
+        color: baseColorHex,
+        roughness: opts.roughness !== undefined ? opts.roughness : 0.62,
+        metalness: opts.metalness !== undefined ? opts.metalness : 0.08,
+        transparent: Boolean(opts.transparent || opts.isGlass),
+        opacity: opts.isGlass ? (opts.opacity || 0.42) : (opts.opacity !== undefined ? opts.opacity : 1)
+      });
+    }
+
+    function addEdgesIfNeeded(mesh, edgeColor = 0x4b5563, opacity = 0.25) {
+      if (state.renderMode === 'shaded' || state.renderMode === 'arctic') {
+        const edges = new THREE.EdgesGeometry(mesh.geometry);
+        const line = new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({
+            color: state.renderMode === 'shaded' ? 0x374151 : 0x9ca3af,
+            transparent: true,
+            opacity: state.renderMode === 'shaded' ? 0.42 : 0.22
+          })
+        );
+        mesh.add(line);
+      }
+    }
+
+    function createBox(w, h, d, colorHex, x, y, z, opts = {}) {
+      const geom = new THREE.BoxGeometry(w, h, d);
+      const mat = makeMaterial(colorHex, opts);
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = opts.castShadow !== false;
+      mesh.receiveShadow = opts.receiveShadow !== false;
+      addEdgesIfNeeded(mesh);
+      return mesh;
+    }
+
+    function createWallSegment(x, z, w, d, maxH, colorHex, isExterior = false) {
+      const geom = new THREE.BoxGeometry(w, 1, d);
+      // Shift geometry so y=0 is bottom of wall
+      geom.translate(0, 0.5, 0);
+      const mat = makeMaterial(colorHex, { roughness: 0.8 });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(x, 0, z);
+      const h = Math.min(maxH, state.wallCutHeight);
+      mesh.scale.y = Math.max(0.15, h);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      addEdgesIfNeeded(mesh);
+
+      // Top cap trim for crisp architectural section look (like screenshot 4!)
+      const capGeom = new THREE.BoxGeometry(w + 0.02, 0.04, d + 0.02);
+      const capMat = new THREE.MeshBasicMaterial({
+        color: isExterior ? 0x374151 : 0x6b7280
+      });
+      const cap = new THREE.Mesh(capGeom, capMat);
+      cap.position.y = 1.0;
+      mesh.add(cap);
+
+      structureGroup.add(mesh);
+      cuttableWalls.push({ mesh, maxH });
+      return mesh;
+    }
+
+    function createSwingingDoor(hingeX, hingeZ, width, height, baseAngle, styleObj) {
+      const pivot = new THREE.Group();
+      pivot.position.set(hingeX, 0, hingeZ);
+      const panel = createBox(width, height, 0.06, styleObj.woodColor, width / 2, height / 2, 0, { roughness: 0.5 });
+      pivot.add(panel);
+      const targetAngle = state.openDoors ? baseAngle + Math.PI * 0.42 : baseAngle;
+      pivot.rotation.y = targetAngle;
+      structureGroup.add(pivot);
+      animatedDoors.push({ pivot, baseAngle, openAngle: baseAngle + Math.PI * 0.42, maxH: height });
+    }
+
+    function buildSceneForCurrentDomain() {
+      clearGroup(structureGroup);
+      clearGroup(designGroup);
+      clearGroup(roofGroup);
+      clearGroup(flowGroup);
+      clearGroup(highlightGroup);
+      cuttableWalls = [];
+      animatedDoors = [];
+      interactivePickMeshes = [];
+
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      const styleObj = getActiveStyleObj();
+
+      // Adjust night/snow background for Digital Cultural Tourism special styles
+      if (state.domain === 'tourism' && state.styleId === 'style2' && state.renderMode === 'material') {
+        scene.background = new THREE.Color(0x131829);
+      } else if (state.domain === 'tourism' && state.styleId === 'style3' && state.renderMode === 'material') {
+        scene.background = new THREE.Color(0xe6edf5);
+      } else {
+        scene.background = new THREE.Color(0xe9e9e6);
+      }
+
+      // Subtle ground shadow pedestal
+      const basePedestal = createBox(16.6, 0.18, 13.6, 0xd6d5d0, 0, -0.12, 0, { roughness: 0.95, castShadow: false });
+      structureGroup.add(basePedestal);
+
+      // Build floor plates & clickable zones for each space in the domain
+      domCfg.spaces.forEach((sp, idx) => {
+        const isSelected = sp.id === state.selectedSpaceId;
+        let zoneFloorColor = styleObj.floorColor;
+        if (sp.type === 'bath' || sp.type === 'kitchen') zoneFloorColor = 0xdadbd6;
+        if (sp.type === 'terrace' || sp.type === 'courtyard') zoneFloorColor = 0xc9c5ba;
+        if (sp.type === 'water' || sp.type === 'river' || sp.type === 'canal') {
+          zoneFloorColor = state.renderMode === 'arctic' ? 0xdbeafe : styleObj.accentColor;
+        }
+
+        const floorTile = createBox(sp.w - 0.08, 0.08, sp.d - 0.08, zoneFloorColor, sp.x, 0.01, sp.z, {
+          roughness: (sp.type === 'water' || sp.type === 'river' || sp.type === 'canal') ? 0.15 : 0.65
+        });
+        floorTile.userData = { spaceId: sp.id };
+        structureGroup.add(floorTile);
+        interactivePickMeshes.push(floorTile);
+
+        // Selection highlight frame
+        if (isSelected) {
+          const hlGeom = new THREE.BoxGeometry(sp.w + 0.05, 0.14, sp.d + 0.05);
+          const hlMat = new THREE.MeshBasicMaterial({
+            color: 0x2b7a68,
+            transparent: true,
+            opacity: 0.24
+          });
+          const hlMesh = new THREE.Mesh(hlGeom, hlMat);
+          hlMesh.position.set(sp.x, 0.06, sp.z);
+          highlightGroup.add(hlMesh);
+
+          const borderEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(sp.w + 0.06, Math.min(sp.h, state.wallCutHeight), sp.d + 0.06));
+          const borderLine = new THREE.LineSegments(
+            borderEdges,
+            new THREE.LineBasicMaterial({ color: 0x1f6f5c })
+          );
+          borderLine.position.set(sp.x, Math.min(sp.h, state.wallCutHeight) / 2, sp.z);
+          highlightGroup.add(borderLine);
+        }
+      });
+
+      // Domain-specific architectural & design geometry
+      if (state.domain === 'interior') {
+        buildInteriorDomain(domCfg, styleObj);
+      } else if (state.domain === 'arch') {
+        buildArchitectureDomain(domCfg, styleObj);
+      } else if (state.domain === 'urban') {
+        buildUrbanDomain(domCfg, styleObj);
+      } else if (state.domain === 'tourism') {
+        buildTourismDomain(domCfg, styleObj);
+      }
+
+      // Build circulation flow path connecting spaces
+      buildCirculationPaths(domCfg);
+
+      // Rebuild HTML 3D labels
+      buildSpaceLabels(domCfg);
+
+      // Apply layer visibility
+      updateLayerVisibility();
+      updateLighting();
+      draw2DFloorPlan();
+    }
+
+    /********************************************************************
+     * DOMAIN 1: INTERIOR SPATIAL DESIGN (12 Rooms + Full Furniture)
+     ********************************************************************/
+    function buildInteriorDomain(domCfg, styleObj) {
+      const wc = styleObj.wallColor;
+      // Outer perimeter walls with window cutouts
+      createWallSegment(0, -6.1, 14.8, 0.22, 2.8, wc, true);     // North wall
+      createWallSegment(-1.2, 6.0, 12.4, 0.22, 2.8, wc, true);   // South wall
+      createWallSegment(-7.5, -0.1, 0.22, 12.2, 2.8, wc, true);  // West wall
+      createWallSegment(5.8, -0.1, 0.22, 12.2, 2.8, wc, true);   // East wall
+
+      // Interior partition walls
+      createWallSegment(-0.8, 3.8, 0.16, 4.2, 2.8, wc, false);   // Between Living & Multi-purpose
+      createWallSegment(-4.8, 3.8, 0.16, 4.2, 2.8, wc, false);   // Walk-in closet east wall
+      createWallSegment(1.2, 1.5, 4.2, 0.16, 2.8, wc, false);    // Between Living & Dining (partial)
+      createWallSegment(-0.8, -0.4, 0.16, 3.4, 2.8, wc, false);  // Between Dining & Kitchen
+      createWallSegment(-3.1, -0.4, 0.16, 3.4, 2.8, wc, false);  // Between Kitchen & Bath
+      createWallSegment(-4.5, -0.4, 0.16, 3.4, 2.8, wc, false);  // Between Bath & Guest Bed
+      createWallSegment(-4.3, -2.3, 6.2, 0.16, 2.8, wc, false);  // Corridor north wall
+      createWallSegment(-4.3, -4.2, 0.16, 3.6, 2.8, wc, false);  // Master Bed / Master Bath wall
+      createWallSegment(-0.1, -4.2, 0.16, 3.6, 2.8, wc, false);  // Master Bed / Fitness Terrace glass frame
+      createWallSegment(3.2, -0.4, 0.16, 3.4, 2.8, wc, false);   // Dining / Foyer divider
+
+      // Panoramic window glass panels
+      const win1 = createBox(4.4, 2.3, 0.06, 0x93c5fd, 2.2, 1.25, -6.05, { isGlass: true });
+      const win2 = createBox(4.6, 2.3, 0.06, 0x93c5fd, 1.5, 1.25, 5.98, { isGlass: true });
+      structureGroup.add(win1, win2);
+
+      // Swinging doors (controlled by toggleOpenDoors)
+      createSwingingDoor(3.2, 1.0, 0.85, 2.1, 0, styleObj);
+      createSwingingDoor(-0.8, 1.8, 0.85, 2.1, Math.PI / 2, styleObj);
+      createSwingingDoor(-4.5, 1.1, 0.8, 2.1, 0, styleObj);
+      createSwingingDoor(-2.2, -2.3, 0.85, 2.1, 0, styleObj);
+      createSwingingDoor(-4.3, -3.5, 0.78, 2.1, Math.PI / 2, styleObj);
+
+      // Furniture in Design Layer
+      // 01 Living Room: L-Sofa + Coffee Table + Rug + TV Console + Accent Chair
+      const rugLiv = createBox(3.2, 0.03, 2.4, styleObj.fabricColor, 1.5, 0.06, 3.8);
+      const sofaBase = createBox(2.6, 0.42, 0.95, styleObj.fabricColor, 1.5, 0.26, 4.65);
+      const sofaBack = createBox(2.6, 0.45, 0.22, styleObj.woodColor, 1.5, 0.62, 5.02);
+      const sofaChaise = createBox(0.9, 0.42, 1.65, styleObj.fabricColor, 0.65, 0.26, 4.3);
+      const coffeeTable = createBox(1.2, 0.35, 0.7, styleObj.woodColor, 1.6, 0.22, 3.55);
+      const accentChair = createBox(0.75, 0.68, 0.75, styleObj.accentColor, 3.0, 0.38, 3.5);
+      const tvStand = createBox(2.4, 0.45, 0.45, styleObj.woodColor, 1.5, 0.27, 2.05);
+      designGroup.add(rugLiv, sofaBase, sofaBack, sofaChaise, coffeeTable, accentChair, tvStand);
+
+      // 02 Multi-purpose Study: Long Desk + Bookshelf + Lounge Mat
+      const studyDesk = createBox(2.2, 0.74, 0.75, styleObj.woodColor, -3.2, 0.4, 3.6);
+      const studyChair = createBox(0.55, 0.8, 0.55, styleObj.accentColor, -3.2, 0.42, 4.25);
+      const bookshelf = createBox(3.0, 2.1, 0.38, styleObj.woodColor, -3.2, 1.1, 5.65);
+      designGroup.add(studyDesk, studyChair, bookshelf);
+
+      // 03 Dining Room: 6-seater Dining Table + Chairs + Sideboard
+      const diningTable = createBox(1.9, 0.76, 0.95, styleObj.woodColor, 1.2, 0.42, -0.4);
+      designGroup.add(diningTable);
+      [-0.6, 0, 0.6].forEach(dx => {
+        designGroup.add(createBox(0.46, 0.78, 0.46, styleObj.fabricColor, 1.2 + dx, 0.41, -1.1));
+        designGroup.add(createBox(0.46, 0.78, 0.46, styleObj.fabricColor, 1.2 + dx, 0.41, 0.3));
+      });
+
+      // 04 Foyer bench & cabinet
+      const foyerCab = createBox(0.5, 2.1, 2.2, styleObj.woodColor, 5.3, 1.1, -0.4);
+      const foyerBench = createBox(1.1, 0.45, 0.45, styleObj.accentColor, 4.3, 0.26, -1.4);
+      designGroup.add(foyerCab, foyerBench);
+
+      // 05 Kitchen counters
+      const kitCounter1 = createBox(2.1, 0.88, 0.65, styleObj.fabricColor, -2.0, 0.48, -1.65);
+      const kitCounter2 = createBox(0.65, 0.88, 2.4, styleObj.woodColor, -2.7, 0.48, -0.3);
+      designGroup.add(kitCounter1, kitCounter2);
+
+      // 06 Guest Bedroom: Bed + Headboard + Nightstands
+      const guestHead = createBox(2.0, 1.15, 0.18, styleObj.woodColor, -6.2, 0.62, -1.7);
+      const guestMattress = createBox(1.8, 0.48, 2.0, 0xfafaf9, -6.2, 0.28, -0.65);
+      const guestBlanket = createBox(1.82, 0.50, 0.85, styleObj.accentColor, -6.2, 0.29, -0.15);
+      designGroup.add(guestHead, guestMattress, guestBlanket);
+
+      // 09 Master Suite (Matches Screenshot 2 with bed, headboard, olive throw blanket, wall art!)
+      const masterHead = createBox(2.6, 1.25, 0.22, styleObj.woodColor, -2.2, 0.66, -5.65);
+      const masterMattress = createBox(2.1, 0.52, 2.2, 0xf5f2eb, -2.2, 0.3, -4.45);
+      const masterThrow = createBox(2.14, 0.54, 0.75, styleObj.accentColor, -2.2, 0.31, -3.75);
+      const pillowL = createBox(0.75, 0.22, 0.42, 0xfafaf9, -2.7, 0.64, -5.2);
+      const pillowR = createBox(0.75, 0.22, 0.42, 0xfafaf9, -1.7, 0.64, -5.2);
+      const artFrame = createBox(1.4, 0.95, 0.05, styleObj.accentColor, -2.2, 1.85, -5.72);
+      designGroup.add(masterHead, masterMattress, masterThrow, pillowL, pillowR, artFrame);
+
+      // 10 Walk-in Closet Wardrobes
+      const closetL = createBox(0.55, 2.2, 3.2, styleObj.woodColor, -6.7, 1.15, 3.6);
+      const closetR = createBox(0.55, 2.2, 3.2, styleObj.woodColor, -5.3, 1.15, 3.6);
+      designGroup.add(closetL, closetR);
+
+      // 11 Master Bathroom Bathtub & Vanity
+      const bathtub = createBox(1.6, 0.58, 0.8, 0xffffff, -6.2, 0.32, -5.2);
+      const vanity = createBox(1.5, 0.82, 0.55, styleObj.woodColor, -5.4, 0.45, -2.9);
+      designGroup.add(bathtub, vanity);
+
+      // 12 Fitness Terrace Equipment & Planters
+      const treadmillBase = createBox(0.85, 0.18, 1.75, styleObj.metalColor, 1.6, 0.14, -4.4);
+      const treadmillConsole = createBox(0.85, 1.15, 0.2, styleObj.metalColor, 1.6, 0.65, -5.15);
+      const benchPress = createBox(1.2, 0.45, 1.4, styleObj.accentColor, 3.4, 0.26, -4.3);
+      designGroup.add(treadmillBase, treadmillConsole, benchPress);
+
+      // Roof / Ceiling Slab
+      const ceilingSlab = createBox(15.0, 0.16, 12.2, 0xf5f5f3, -0.8, 2.88, -0.1, { transparent: true, opacity: 0.88 });
+      roofGroup.add(ceilingSlab);
+    }
+
+    /********************************************************************
+     * DOMAIN 2: ARCHITECTURAL MASSING & FACADE (Contemporary Art Center)
+     ********************************************************************/
+    function buildArchitectureDomain(domCfg, styleObj) {
+      // Sunken reflecting water court
+      const poolMesh = createBox(9.2, 0.12, 2.2, 0x38bdf8, 0, 0.05, 6.1, { isGlass: true, opacity: 0.65 });
+      structureGroup.add(poolMesh);
+
+      // Main Podium & Atrium Core Walls
+      createWallSegment(0, 3.5, 5.2, 3.6, 2.6, styleObj.wallColor, true);
+      createWallSegment(-4.6, 1.2, 3.8, 5.0, 2.8, styleObj.wallColor, true);
+      createWallSegment(4.6, 1.2, 3.8, 5.0, 2.8, styleObj.wallColor, true);
+      createWallSegment(-3.2, -3.4, 4.2, 3.2, 2.4, styleObj.wallColor, true);
+      createWallSegment(2.8, -3.4, 4.0, 3.2, 3.1, styleObj.metalColor, true);
+
+      // Cantilevered Upper Exhibition Box (Design Layer)
+      const upperGallery = createBox(11.6, 1.05, 4.2, styleObj.wallColor, 0, 2.15, 1.2);
+      const atriumGlass = createBox(5.0, 2.4, 3.5, 0x93c5fd, 0, 1.3, 3.5, { isGlass: true, opacity: 0.42 });
+      designGroup.add(upperGallery, atriumGlass);
+
+      // Parametric Louver Fins (Expandable via toggleOpenDoors!)
+      const spread = state.openDoors ? 0.35 : 0.0;
+      for (let i = -5; i <= 5; i++) {
+        const fin = createBox(0.14, 2.45, 0.32, styleObj.woodColor, i * 1.05, 1.45, 3.45 + spread);
+        fin.rotation.y = state.openDoors ? 0.45 : 0.05;
+        designGroup.add(fin);
+      }
+
+      // Sky Sculpture Terrace greenery & sculptures
+      const gardenDeck = createBox(3.6, 0.25, 2.4, styleObj.accentColor, -4.6, 1.45, 5.0);
+      const cafePavilion = createBox(3.6, 1.35, 2.4, styleObj.woodColor, 4.6, 0.72, 5.0);
+      designGroup.add(gardenDeck, cafePavilion);
+
+      // Floating Architectural Canopy Roof
+      const mainCanopy = createBox(13.2, 0.24, 9.6, styleObj.wallColor, 0, 3.05, 0.4);
+      const skylight = createBox(4.6, 0.32, 3.2, 0x7dd3fc, 0, 3.15, 1.5, { isGlass: true });
+      roofGroup.add(mainCanopy, skylight);
+    }
+
+    /********************************************************************
+     * DOMAIN 3: URBAN PLANNING MASTERPLAN SANDBOX (TOD Smart District)
+     ********************************************************************/
+    function buildUrbanDomain(domCfg, styleObj) {
+      // River corridor
+      const riverMesh = createBox(14.8, 0.1, 2.0, 0x38bdf8, 0, 0.06, 2.0, { isGlass: true, opacity: 0.72 });
+      const greenBankN = createBox(14.8, 0.14, 0.55, styleObj.accentColor, 0, 0.08, 0.8);
+      const greenBankS = createBox(14.8, 0.14, 0.55, styleObj.accentColor, 0, 0.08, 3.2);
+      structureGroup.add(riverMesh, greenBankN, greenBankS);
+
+      // Twin Supertall TOD Towers (01)
+      createWallSegment(-0.85, -1.5, 1.35, 1.35, 3.15, styleObj.wallColor, true);
+      createWallSegment(0.85, -1.5, 1.35, 1.35, 2.75, styleObj.wallColor, true);
+      const podiumCBD = createBox(3.6, 0.55, 3.1, styleObj.woodColor, 0, 0.3, -1.5);
+      designGroup.add(podiumCBD);
+
+      // Tech Innovation Hub Courtyard Blocks (03)
+      createWallSegment(-5.4, -1.8, 1.1, 3.2, 2.0, styleObj.wallColor, false);
+      createWallSegment(-3.8, -1.8, 1.1, 3.2, 1.7, styleObj.wallColor, false);
+      const campusPark = createBox(1.4, 0.15, 2.2, styleObj.accentColor, -4.6, 0.1, -1.8);
+      designGroup.add(campusPark);
+
+      // Heritage Lane Low-rise Courtyard (04)
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 3; c++) {
+          const hBlk = createBox(1.0, 0.65, 1.0, styleObj.woodColor, -5.6 + c * 1.15, 0.35, 4.0 + r * 1.25);
+          designGroup.add(hBlk);
+        }
+      }
+
+      // Metro Transit Hub (05)
+      createWallSegment(4.6, -1.8, 3.4, 3.0, 1.45, styleObj.wallColor, true);
+      const hubCanopy = createBox(3.8, 0.2, 3.4, styleObj.accentColor, 4.6, 1.55, -1.8);
+      designGroup.add(hubCanopy);
+
+      // Civic Waterfront Opera (06)
+      const operaShell = createBox(3.1, 1.25, 2.3, styleObj.wallColor, 0.2, 0.65, 4.8);
+      const operaPlaza = createBox(3.5, 0.15, 2.7, styleObj.fabricColor, 0.2, 0.1, 4.8);
+      designGroup.add(operaShell, operaPlaza);
+
+      // Talent Living Quarter Towers (07) & Smart Grid Center (08)
+      createWallSegment(-5.3, -5.2, 1.1, 1.8, 2.1, styleObj.wallColor, false);
+      createWallSegment(-3.9, -5.2, 1.1, 1.8, 1.85, styleObj.wallColor, false);
+      createWallSegment(4.6, 4.8, 3.0, 2.3, 1.9, styleObj.wallColor, false);
+
+      // Elevated Skybridge Ring (Controlled by Roof Toggle!)
+      const bridge1 = createBox(9.2, 0.14, 0.45, styleObj.accentColor, 0, 1.1, -1.6);
+      const bridge2 = createBox(0.45, 0.14, 6.6, styleObj.accentColor, 0, 1.1, 1.6);
+      roofGroup.add(bridge1, bridge2);
+    }
+
+    /********************************************************************
+     * DOMAIN 4: DIGITAL CULTURAL TOURISM (Ancient Water-Town & Pavilion)
+     ********************************************************************/
+    function buildTourismDomain(domCfg, styleObj) {
+      // Winding Jade Canal
+      const canalMesh = createBox(14.6, 0.1, 2.1, 0x0ea5e9, 0, 0.05, 2.2, { isGlass: true, opacity: 0.72 });
+      structureGroup.add(canalMesh);
+
+      // 01 Grand Heritage Pavilion (Tiered Pagoda Base + Columns)
+      const terraceBase = createBox(4.0, 0.45, 3.6, 0xd6d3cd, 0, 0.24, -1.2);
+      structureGroup.add(terraceBase);
+      createWallSegment(0, -1.2, 2.8, 2.4, 2.3, styleObj.woodColor, true);
+
+      // Double-eave pitched roofs (in Roof Group & Design Group)
+      const lowerEave = createBox(3.9, 0.24, 3.5, styleObj.metalColor, 0, 1.55, -1.2);
+      const upperEave = createBox(3.1, 0.32, 2.8, styleObj.metalColor, 0, 2.65, -1.2);
+      const finial = createBox(0.35, 0.55, 0.35, 0xf59e0b, 0, 3.0, -1.2);
+      designGroup.add(lowerEave);
+      roofGroup.add(upperEave, finial);
+
+      // 03 Ancient City Gate Barbican
+      createWallSegment(-1.6, 5.2, 1.7, 2.0, 1.75, 0x9ca3af, true);
+      createWallSegment(1.6, 5.2, 1.7, 2.0, 1.75, 0x9ca3af, true);
+      const gateWatchtower = createBox(3.6, 0.85, 1.6, styleObj.woodColor, 0, 2.05, 5.2);
+      designGroup.add(gateWatchtower);
+
+      // 04 Intangible Craft Courtyard (Siheyuan)
+      createWallSegment(-4.6, -2.5, 3.4, 0.8, 1.45, styleObj.wallColor, false);
+      createWallSegment(-6.0, -1.2, 0.7, 3.2, 1.25, styleObj.wallColor, false);
+      createWallSegment(-3.2, -1.2, 0.7, 3.2, 1.25, styleObj.wallColor, false);
+
+      // 05 Water-Curtain Night Stage
+      const stageDeck = createBox(3.4, 0.22, 3.0, styleObj.woodColor, 4.6, 0.15, -1.2);
+      const waterScreen = createBox(2.8, 1.65, 0.12, 0x38bdf8, 4.6, 1.0, -1.2, { isGlass: true, opacity: 0.55 });
+      designGroup.add(stageDeck, waterScreen);
+
+      // 06 Twin Arch Stone Bridge
+      const bridgeArch = createBox(1.8, 0.65, 2.6, 0xd6d3cd, -2.2, 0.35, 2.2);
+      designGroup.add(bridgeArch);
+
+      // 07 Riverside Tea Street & 08 Cloud Cliff Walkway
+      createWallSegment(-4.6, 4.8, 3.6, 1.8, 1.45, styleObj.woodColor, false);
+      const cliffTower = createBox(3.2, 1.9, 2.0, styleObj.woodColor, 4.6, 1.0, 4.8);
+      designGroup.add(cliffTower);
+
+      // Festive Lanterns / Floating Boats when toggleOpenDoors is active
+      if (state.openDoors) {
+        [-1.4, 1.4, -3.5, 2.8].forEach((lx, i) => {
+          const lantern = createBox(0.28, 0.38, 0.28, 0xef4444, lx, 1.85 + (i % 2) * 0.3, 1.8 + (i - 1.5) * 1.1);
+          designGroup.add(lantern);
+        });
+      }
+    }
+
+    /********************************************************************
+     * CIRCULATION FLOW LINES & 3D HTML LABELS
+     ********************************************************************/
+    function buildCirculationPaths(domCfg) {
+      const seenPairs = new Set();
+      const mapById = {};
+      domCfg.spaces.forEach(s => { mapById[s.id] = s; });
+
+      domCfg.spaces.forEach(sp => {
+        (sp.connected || []).forEach(targetId => {
+          const pairKey = [sp.id, targetId].sort().join('-');
+          if (seenPairs.has(pairKey) || !mapById[targetId]) return;
+          seenPairs.add(pairKey);
+          const t = mapById[targetId];
+
+          const points = [
+            new THREE.Vector3(sp.x, 0.22, sp.z),
+            new THREE.Vector3((sp.x + t.x) / 2, 0.32, (sp.z + t.z) / 2),
+            new THREE.Vector3(t.x, 0.22, t.z)
+          ];
+          const curve = new THREE.CatmullRomCurve3(points);
+          const tubeGeom = new THREE.TubeGeometry(curve, 16, 0.045, 6, false);
+          const isLinkedToSelected = (sp.id === state.selectedSpaceId || targetId === state.selectedSpaceId);
+          const tubeMat = new THREE.MeshBasicMaterial({
+            color: isLinkedToSelected ? 0x1f6f5c : 0x9ca3af,
+            transparent: true,
+            opacity: isLinkedToSelected ? 0.88 : 0.42
+          });
+          const tube = new THREE.Mesh(tubeGeom, tubeMat);
+          flowGroup.add(tube);
+        });
+      });
+    }
+
+    function buildSpaceLabels(domCfg) {
+      labelsOverlay.innerHTML = '';
+      spaceLabelElements = [];
+
+      domCfg.spaces.forEach(sp => {
+        const el = document.createElement('button');
+        el.type = 'button';
+        const isActive = sp.id === state.selectedSpaceId;
+        el.className = `label-3d px-2 py-0.5 rounded-md text-[11px] font-medium border shadow-xs flex items-center gap-1 ${
+          isActive
+            ? 'active-label bg-[#1f6f5c] text-white border-[#134e40]'
+            : 'bg-white/90 text-gray-800 border-gray-300 hover:border-emerald-600'
+        }`;
+        el.innerHTML = `<span class="opacity-65 font-mono text-[10px]">${sp.id}</span><span>${sp.name}</span>`;
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectSpace(sp.id, true);
+        });
+        labelsOverlay.appendChild(el);
+        spaceLabelElements.push({
+          el,
+          pos: new THREE.Vector3(sp.x, Math.min(sp.h, state.wallCutHeight) * 0.55 + 0.5, sp.z),
+          spaceId: sp.id
+        });
+      });
+    }
+
+    function updateSpaceLabelsProjection() {
+      if (!state.showSpaceNames || state.viewMode === 'plan') {
+        labelsOverlay.style.display = 'none';
+        return;
+      }
+      labelsOverlay.style.display = 'block';
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      spaceLabelElements.forEach(item => {
+        const v = item.pos.clone();
+        v.project(camera);
+        if (v.z > 1) {
+          item.el.style.display = 'none';
+          return;
+        }
+        const x = (v.x * 0.5 + 0.5) * width;
+        const y = (-(v.y * 0.5) + 0.5) * height;
+        item.el.style.display = 'flex';
+        item.el.style.left = `${x}px`;
+        item.el.style.top = `${y}px`;
+      });
+    }
+
+    /********************************************************************
+     * 5. 2D ARCHITECTURAL FLOOR PLAN / MASTERPLAN BLUEPRINT RENDERER
+     ********************************************************************/
+    const plan2dCanvas = document.getElementById('plan2dCanvas');
+    const planCtx = plan2dCanvas.getContext('2d');
+
+    function draw2DFloorPlan() {
+      if (state.viewMode !== 'plan') return;
+      const rect = plan2dCanvas.parentElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      plan2dCanvas.width = rect.width * dpr;
+      plan2dCanvas.height = rect.height * dpr;
+      planCtx.save();
+      planCtx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      planCtx.fillStyle = '#f6f6f3';
+      planCtx.fillRect(0, 0, W, H);
+
+      const cx = W / 2;
+      const cy = H / 2 + 10;
+      const scale = Math.min(W / 19, H / 15.5);
+
+      // Draw CAD Structural Grid if enabled
+      if (state.cadGrid) {
+        planCtx.strokeStyle = `rgba(156, 163, 175, ${(state.cadOpacity / 100) * 0.35})`;
+        planCtx.lineWidth = 1;
+        planCtx.setLineDash([4, 4]);
+        for (let gx = -8; gx <= 8; gx += 2) {
+          const sx = cx + gx * scale;
+          planCtx.beginPath();
+          planCtx.moveTo(sx, cy - 6.8 * scale);
+          planCtx.lineTo(sx, cy + 6.8 * scale);
+          planCtx.stroke();
+        }
+        for (let gz = -6; gz <= 6; gz += 2) {
+          const sy = cy + gz * scale;
+          planCtx.beginPath();
+          planCtx.moveTo(cx - 8.2 * scale, sy);
+          planCtx.lineTo(cx + 8.2 * scale, sy);
+          planCtx.stroke();
+        }
+        planCtx.setLineDash([]);
+      }
+
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+
+      // Draw each space polygon (like Screenshot 1: selected space has soft mint fill!)
+      domCfg.spaces.forEach(sp => {
+        const rx = cx + (sp.x - sp.w / 2) * scale;
+        const ry = cy + (sp.z - sp.d / 2) * scale;
+        const rw = sp.w * scale;
+        const rh = sp.d * scale;
+        const isSelected = sp.id === state.selectedSpaceId;
+
+        planCtx.fillStyle = isSelected ? 'rgba(182, 220, 211, 0.58)' : '#ffffff';
+        planCtx.fillRect(rx, ry, rw, rh);
+
+        // Internal architectural furniture wireframe in 2D
+        if (state.showDesignLayer) {
+          planCtx.strokeStyle = `rgba(140, 145, 155, ${state.cadOpacity / 100})`;
+          planCtx.lineWidth = 1.1;
+          planCtx.strokeRect(rx + rw * 0.18, ry + rh * 0.2, rw * 0.64, rh * 0.6);
+          planCtx.fillStyle = `rgba(229, 231, 235, ${(state.cadOpacity / 100) * 0.6})`;
+          planCtx.fillRect(rx + rw * 0.22, ry + rh * 0.25, rw * 0.56, rh * 0.5);
+        }
+
+        // Heavy architectural structural walls around zone
+        if (state.showStructureLayer) {
+          planCtx.strokeStyle = isSelected ? '#1f6f5c' : '#4b5563';
+          planCtx.lineWidth = isSelected ? 3.5 : 4.5;
+          planCtx.strokeRect(rx, ry, rw, rh);
+        }
+
+        // Room Title & Area label
+        planCtx.fillStyle = isSelected ? '#115e59' : '#374151';
+        planCtx.font = 'bold 12px Inter, sans-serif';
+        planCtx.textAlign = 'center';
+        planCtx.fillText(sp.name, cx + sp.x * scale, cy + sp.z * scale - 3);
+        planCtx.fillStyle = '#6b7280';
+        planCtx.font = '10px Inter, monospace';
+        planCtx.fillText(sp.area, cx + sp.x * scale, cy + sp.z * scale + 12);
+      });
+
+      // Circulation lines in 2D
+      if (state.showFlowLines) {
+        const mapById = {};
+        domCfg.spaces.forEach(s => { mapById[s.id] = s; });
+        const sel = mapById[state.selectedSpaceId];
+        if (sel) {
+          (sel.connected || []).forEach(tid => {
+            const target = mapById[tid];
+            if (!target) return;
+            planCtx.strokeStyle = '#2b7a68';
+            planCtx.lineWidth = 2;
+            planCtx.setLineDash([5, 4]);
+            planCtx.beginPath();
+            planCtx.moveTo(cx + sel.x * scale, cy + sel.z * scale);
+            planCtx.lineTo(cx + target.x * scale, cy + target.z * scale);
+            planCtx.stroke();
+            planCtx.setLineDash([]);
+          });
+        }
+      }
+
+      planCtx.restore();
+    }
+
+    plan2dCanvas.addEventListener('click', (e) => {
+      const rect = plan2dCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const cx = rect.width / 2;
+      const cy = rect.height / 2 + 10;
+      const scale = Math.min(rect.width / 19, rect.height / 15.5);
+
+      const wx = (mx - cx) / scale;
+      const wz = (my - cy) / scale;
+
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      for (const sp of domCfg.spaces) {
+        if (
+          wx >= sp.x - sp.w / 2 && wx <= sp.x + sp.w / 2 &&
+          wz >= sp.z - sp.d / 2 && wz <= sp.z + sp.d / 2
+        ) {
+          selectSpace(sp.id, false);
+          break;
+        }
+      }
+    });
+
+    /********************************************************************
+     * 6. UI SYNCHRONIZATION & INTERACTION HANDLERS
+     ********************************************************************/
+    function updateAllUI() {
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      const styleObj = getActiveStyleObj();
+
+      // 1. Domain tabs active state
+      document.querySelectorAll('.domain-tab').forEach(btn => {
+        const isAct = btn.dataset.domain === state.domain;
+        btn.className = `domain-tab px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+          isAct ? 'bg-white text-gray-900 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'
+        }`;
+      });
+
+      // 2. View mode tabs active state
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        const isAct = btn.dataset.view === state.viewMode;
+        btn.className = `view-tab flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+          isAct
+            ? 'bg-[#e6f2ef] text-[#1f6f5c] border border-[#b6dcd3] font-semibold'
+            : 'text-gray-600 hover:text-gray-900 border border-transparent'
+        }`;
+      });
+
+      // 3. Render mode tabs
+      document.querySelectorAll('.render-tab').forEach(btn => {
+        const isAct = btn.dataset.render === state.renderMode;
+        btn.className = `render-tab px-2 py-0.5 rounded transition ${
+          isAct ? 'bg-white text-gray-900 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-800'
+        }`;
+      });
+
+      // 4. HUD Titles
+      const viewTitleMap = {
+        perspective: '3D Perspective',
+        axon: 'Axonometric View',
+        top: 'Top Orthographic View',
+        plan: '2D Floor Plan',
+        walk: 'First-person Walkthrough'
+      };
+      document.getElementById('hudStyleTag').textContent = `${styleObj.code} / ${state.renderMode.toUpperCase()}`;
+      document.getElementById('hudViewTitle').textContent = viewTitleMap[state.viewMode];
+      document.getElementById('hudViewSub').textContent = `${domCfg.name} · ${styleObj.name}`;
+      document.getElementById('domainSubtitleBanner').textContent = domCfg.subtitle;
+
+      // 5. Layer & Control Labels
+      document.getElementById('layerStructureTitle').textContent = domCfg.layerStructName;
+      document.getElementById('layerStructureDesc').textContent = domCfg.layerStructDesc;
+      document.getElementById('layerDesignTitle').textContent = domCfg.layerDesignName;
+      document.getElementById('layerDesignDesc').textContent = domCfg.layerDesignDesc;
+      document.getElementById('labelToggleRoof').textContent = domCfg.roofLabel;
+      document.getElementById('labelToggleDoors').textContent = domCfg.doorLabel;
+      document.getElementById('labelWallCut').textContent = domCfg.cutLabel;
+      document.getElementById('wallCutValueText').textContent = `${state.wallCutHeight.toFixed(2)} m`;
+      document.getElementById('footerScaleText').textContent = domCfg.scaleText;
+      document.getElementById('footerUnitText').textContent = domCfg.unitText;
+
+      // 6. Left Sidebar Space Directory & Camera Select
+      document.getElementById('spaceCountBadge').textContent = domCfg.spaces.length;
+      const listEl = document.getElementById('spaceListContainer');
+      const selectEl = document.getElementById('cameraPresetSelect');
+      listEl.innerHTML = '';
+      selectEl.innerHTML = `<option value="all">整体 / 自由视角 (${domCfg.name})</option>`;
+
+      domCfg.spaces.forEach(sp => {
+        const isSel = sp.id === state.selectedSpaceId;
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = `w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition ${
+          isSel ? 'bg-[#e6f2ef] text-[#1f6f5c] font-semibold border-l-4 border-[#1f6f5c]' : 'text-gray-700 hover:bg-gray-50'
+        }`;
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5 truncate">
+            <span class="text-[10px] font-mono ${isSel ? 'text-[#1f6f5c]' : 'text-gray-400'}">${sp.id}</span>
+            <span class="truncate">${sp.name}</span>
+          </div>
+          <span class="text-[10px] font-mono text-gray-400 shrink-0">${sp.area.split('|')[0]}</span>
+        `;
+        item.addEventListener('click', () => selectSpace(sp.id, true));
+        listEl.appendChild(item);
+
+        const opt = document.createElement('option');
+        opt.value = sp.id;
+        opt.textContent = `${sp.id} ${sp.name} (${sp.en})`;
+        if (isSel) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+
+      // 7. Left Sidebar 2x2 DESIGN STYLE Grid (Matches Screenshot 2 & 3!)
+      const styleGrid = document.getElementById('styleGridContainer');
+      styleGrid.innerHTML = '';
+      domCfg.styles.forEach(st => {
+        const isAct = st.id === state.styleId;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `p-2 rounded-lg border text-left transition flex items-start gap-2 relative ${
+          isAct
+            ? 'border-[#2b7a68] bg-[#f2f9f7] shadow-xs'
+            : 'border-gray-200 bg-white hover:border-gray-300'
+        }`;
+        btn.innerHTML = `
+          <div class="w-3.5 h-10 rounded-xs overflow-hidden flex flex-col shrink-0 border border-black/10">
+            <span class="flex-1 w-full" style="background:${st.swatches[0]}"></span>
+            <span class="flex-1 w-full" style="background:${st.swatches[1]}"></span>
+            <span class="flex-1 w-full" style="background:${st.swatches[2]}"></span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-[10px] font-bold tracking-tight text-gray-900 flex items-center justify-between">
+              <span>${st.code}</span>
+              ${isAct ? '<span class="text-[#1f6f5c]">✓</span>' : ''}
+            </div>
+            <div class="text-[11px] text-gray-600 truncate mt-0.5">${st.name}</div>
+          </div>
+        `;
+        btn.addEventListener('click', () => {
+          state.styleId = st.id;
+          buildSceneForCurrentDomain();
+          updateAllUI();
+        });
+        styleGrid.appendChild(btn);
+      });
+
+      // 8. Selected Space Card Update
+      const activeSpace = domCfg.spaces.find(s => s.id === state.selectedSpaceId) || domCfg.spaces[0];
+      if (activeSpace) {
+        document.getElementById('cardSpaceName').textContent = activeSpace.name;
+        document.getElementById('cardSpaceEn').textContent = activeSpace.en;
+        document.getElementById('cardSpaceArea').textContent = activeSpace.area;
+        document.getElementById('cardSpaceDesc').textContent = activeSpace.desc;
+
+        const connContainer = document.getElementById('cardConnectedLinks');
+        connContainer.innerHTML = '';
+        (activeSpace.connected || []).forEach(cid => {
+          const targetSp = domCfg.spaces.find(s => s.id === cid);
+          if (!targetSp) return;
+          const tag = document.createElement('button');
+          tag.type = 'button';
+          tag.className = 'px-2 py-0.5 rounded text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition';
+          tag.textContent = targetSp.name;
+          tag.addEventListener('click', () => selectSpace(targetSp.id, true));
+          connContainer.appendChild(tag);
+        });
+      }
+
+      // 9. Toggle 2D Plan Overlay vs 3D Canvas
+      const planOverlay = document.getElementById('plan2dOverlay');
+      const rightControls = document.getElementById('rightViewerControls');
+      if (state.viewMode === 'plan') {
+        planOverlay.classList.remove('hidden');
+        planOverlay.classList.add('flex');
+        rightControls.classList.add('hidden');
+        draw2DFloorPlan();
+      } else {
+        planOverlay.classList.add('hidden');
+        planOverlay.classList.remove('flex');
+        rightControls.classList.remove('hidden');
+      }
+    }
+
+    function selectSpace(spaceId, moveCamera = true) {
+      state.selectedSpaceId = spaceId;
+      document.getElementById('selectedSpaceCard').classList.remove('hidden');
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      const sp = domCfg.spaces.find(s => s.id === spaceId);
+      if (sp && moveCamera) {
+        if (state.viewMode === 'walk') {
+          camCtrl.walkPos.set(sp.x, 1.52, sp.z + 0.8);
+        } else {
+          camCtrl.targetLookAt.set(sp.x, 0.6, sp.z);
+          if (state.viewMode === 'perspective') {
+            camCtrl.targetSpherical.radius = 12.5;
+            camCtrl.targetSpherical.phi = 0.82;
+          }
+        }
+      }
+      buildSceneForCurrentDomain();
+      updateAllUI();
+    }
+
+    function applyCameraPresetForViewMode(mode) {
+      state.viewMode = mode;
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      const sp = domCfg.spaces.find(s => s.id === state.selectedSpaceId) || domCfg.spaces[0];
+
+      if (mode === 'perspective') {
+        camera.fov = 45;
+        camera.updateProjectionMatrix();
+        camCtrl.targetSpherical.radius = 18.5;
+        camCtrl.targetSpherical.phi = 0.88;
+        camCtrl.targetSpherical.theta = 0.65;
+        camCtrl.targetLookAt.set(0, 0.5, 0);
+      } else if (mode === 'axon') {
+        // Telephoto low-FOV orthographic feel
+        camera.fov = 20;
+        camera.updateProjectionMatrix();
+        camCtrl.targetSpherical.radius = 42.0;
+        camCtrl.targetSpherical.phi = 0.92;
+        camCtrl.targetSpherical.theta = Math.PI / 4;
+        camCtrl.targetLookAt.set(0, 0.4, 0);
+      } else if (mode === 'top') {
+        camera.fov = 26;
+        camera.updateProjectionMatrix();
+        camCtrl.targetSpherical.radius = 34.0;
+        camCtrl.targetSpherical.phi = 0.04;
+        camCtrl.targetSpherical.theta = 0;
+        camCtrl.targetLookAt.set(0, 0, 0);
+      } else if (mode === 'walk') {
+        camera.fov = 62;
+        camera.updateProjectionMatrix();
+        state.wallCutHeight = domCfg.cutMax;
+        document.getElementById('sliderWallCut').value = state.wallCutHeight;
+        if (sp) {
+          camCtrl.walkPos.set(sp.x, 1.52, sp.z + 0.9);
+        } else {
+          camCtrl.walkPos.set(0, 1.52, 2.5);
+        }
+        camCtrl.walkPitch = -0.04;
+        buildSceneForCurrentDomain();
+      }
+      updateAllUI();
+    }
+
+    function updateLayerVisibility() {
+      structureGroup.visible = state.showStructureLayer;
+      designGroup.visible = state.showDesignLayer;
+      roofGroup.visible = state.showRoof;
+      flowGroup.visible = state.showFlowLines;
+    }
+
+    function updateLighting() {
+      const hour = state.sunTime;
+      const angle = ((hour - 6) / 16) * Math.PI; // 6:00 -> 0, 14:00 -> PI/2, 22:00 -> PI
+      const sx = Math.cos(angle) * 20;
+      const sy = Math.max(3.5, Math.sin(angle) * 24);
+      const sz = 12 + Math.sin(angle * 0.7) * 6;
+      dirLight.position.set(sx, sy, sz);
+
+      const isNight = hour < 7.5 || hour > 19.5;
+      dirLight.intensity = isNight ? 0.32 : 0.9;
+      dirLight.color.setHex(isNight ? 0x93c5fd : (hour < 9.5 || hour > 17.5 ? 0xfdba74 : 0xfffbf0));
+      ambientLight.intensity = (state.ambientPercent / 100) * (isNight ? 0.45 : 0.72);
+    }
+
+    /********************************************************************
+     * 7. EVENT LISTENERS FOR ALL CONTROLS
+     ********************************************************************/
+    // Domain Tabs
+    document.querySelectorAll('.domain-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const newDomain = btn.dataset.domain;
+        state.domain = newDomain;
+        const domCfg = DOMAIN_CONFIGS[newDomain];
+        state.selectedSpaceId = domCfg.spaces[0].id;
+        state.wallCutHeight = domCfg.cutDefault;
+        const slider = document.getElementById('sliderWallCut');
+        slider.min = domCfg.cutMin;
+        slider.max = domCfg.cutMax;
+        slider.value = domCfg.cutDefault;
+        camCtrl.targetLookAt.set(0, 0.5, 0);
+        buildSceneForCurrentDomain();
+        updateAllUI();
+      });
+    });
+
+    // View Mode Tabs
+    document.querySelectorAll('.view-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        applyCameraPresetForViewMode(btn.dataset.view);
+      });
+    });
+
+    // Render Mode Tabs
+    document.querySelectorAll('.render-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.renderMode = btn.dataset.render;
+        buildSceneForCurrentDomain();
+        updateAllUI();
+      });
+    });
+
+    // Camera Dropdown
+    document.getElementById('cameraPresetSelect').addEventListener('change', (e) => {
+      if (e.target.value === 'all') {
+        camCtrl.targetLookAt.set(0, 0.5, 0);
+        camCtrl.targetSpherical.radius = 19.5;
+      } else {
+        selectSpace(e.target.value, true);
+      }
+    });
+
+    document.getElementById('btnResetSelection').addEventListener('click', () => {
+      camCtrl.targetLookAt.set(0, 0.5, 0);
+      camCtrl.targetSpherical.radius = 19.5;
+      camCtrl.targetSpherical.phi = 0.88;
+      camCtrl.targetSpherical.theta = 0.65;
+    });
+
+    // Layer & Right Panel Toggles
+    document.getElementById('toggleStructureLayer').addEventListener('change', (e) => {
+      state.showStructureLayer = e.target.checked;
+      updateLayerVisibility();
+      draw2DFloorPlan();
+    });
+    document.getElementById('toggleDesignLayer').addEventListener('change', (e) => {
+      state.showDesignLayer = e.target.checked;
+      updateLayerVisibility();
+      draw2DFloorPlan();
+    });
+    document.getElementById('toggleSpaceNames').addEventListener('change', (e) => {
+      state.showSpaceNames = e.target.checked;
+    });
+    document.getElementById('toggleFlowLines').addEventListener('change', (e) => {
+      state.showFlowLines = e.target.checked;
+      updateLayerVisibility();
+      draw2DFloorPlan();
+    });
+    document.getElementById('toggleRoofTop').addEventListener('change', (e) => {
+      state.showRoof = e.target.checked;
+      updateLayerVisibility();
+    });
+    document.getElementById('toggleOpenDoors').addEventListener('change', (e) => {
+      state.openDoors = e.target.checked;
+      buildSceneForCurrentDomain();
+    });
+
+    // Wall Cut Height Slider
+    document.getElementById('sliderWallCut').addEventListener('input', (e) => {
+      state.wallCutHeight = parseFloat(e.target.value);
+      document.getElementById('wallCutValueText').textContent = `${state.wallCutHeight.toFixed(2)} m`;
+      cuttableWalls.forEach(item => {
+        item.mesh.scale.y = Math.max(0.15, Math.min(item.maxH, state.wallCutHeight));
+      });
+    });
+
+    // 2D CAD Controls
+    document.getElementById('toggleCadGrid').addEventListener('change', (e) => {
+      state.cadGrid = e.target.checked;
+      draw2DFloorPlan();
+    });
+    document.getElementById('sliderCadOpacity').addEventListener('input', (e) => {
+      state.cadOpacity = parseInt(e.target.value, 10);
+      document.getElementById('cadOpacityVal').textContent = `${state.cadOpacity}%`;
+      draw2DFloorPlan();
+    });
+
+    // Close Selected Space Card
+    document.getElementById('btnCloseSpaceCard').addEventListener('click', () => {
+      document.getElementById('selectedSpaceCard').classList.add('hidden');
+    });
+
+    // Lighting Popover & Sliders
+    document.getElementById('btnToggleLighting').addEventListener('click', () => {
+      document.getElementById('lightingPopover').classList.toggle('hidden');
+    });
+    document.getElementById('sliderSunTime').addEventListener('input', (e) => {
+      state.sunTime = parseFloat(e.target.value);
+      const hrs = Math.floor(state.sunTime);
+      const mins = (state.sunTime % 1) ? '30' : '00';
+      document.getElementById('sunTimeLabel').textContent = `${String(hrs).padStart(2, '0')}:${mins}`;
+      updateLighting();
+    });
+    document.getElementById('sliderAmbient').addEventListener('input', (e) => {
+      state.ambientPercent = parseInt(e.target.value, 10);
+      document.getElementById('ambientValLabel').textContent = `${state.ambientPercent}%`;
+      updateLighting();
+    });
+    document.getElementById('btnResetCamera').addEventListener('click', () => {
+      applyCameraPresetForViewMode(state.viewMode);
+    });
+
+    /********************************************************************
+     * 移动端抽屉：侧边栏在窄屏默认收起，避免挤占 3D 画面
+     ********************************************************************/
+    const sidebarEl = document.querySelector('aside');
+    const sidebarScrim = document.getElementById('sidebarScrim');
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+
+    function openSidebar() {
+      sidebarEl.classList.add('drawer-open');
+      sidebarScrim.classList.add('show');
+    }
+
+    function closeSidebar() {
+      sidebarEl.classList.remove('drawer-open');
+      sidebarScrim.classList.remove('show');
+    }
+
+    btnToggleSidebar.addEventListener('click', () => {
+      sidebarEl.classList.contains('drawer-open') ? closeSidebar() : openSidebar();
+    });
+    sidebarScrim.addEventListener('click', closeSidebar);
+
+    // 选中空间 / 切换风格后自动收起抽屉，把画面还给用户
+    sidebarEl.addEventListener('click', (e) => {
+      if (window.innerWidth < 1024 && e.target.closest('#spaceListContainer, #styleGridContainer')) {
+        closeSidebar();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSidebar();
+    });
+
+    // 视口尺寸变化时重算 canvas，抽屉开关也会改变可用宽度
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 1024) closeSidebar();
+    });
+
+    // Save & Export Layout Backup
+    function showToast(msg) {
+      const t = document.getElementById('toastBanner');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 2400);
+    }
+    document.getElementById('btnSaveLayout').addEventListener('click', () => {
+      try {
+        localStorage.setItem('base_spatial_lab_state', JSON.stringify(state));
+      } catch (err) {}
+      showToast('✓ 已保存当前 3D 空间布局与风格参数至本机');
+    });
+    document.getElementById('btnExportJson').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spatial-design-${state.domain}-${state.styleId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✓ 已导出 JSON 布局备份文件');
+    });
+
+    // Moodboard Modal (Matches Screenshot 3 reference boards!)
+    function renderMoodboardModal() {
+      const domCfg = DOMAIN_CONFIGS[state.domain];
+      const body = document.getElementById('moodboardBody');
+      body.innerHTML = '';
+      domCfg.styles.slice(1).forEach(st => {
+        const isAct = st.id === state.styleId;
+        const card = document.createElement('div');
+        card.className = `bg-white rounded-xl border p-4 flex flex-col justify-between shadow-xs ${
+          isAct ? 'border-[#1f6f5c] ring-2 ring-[#1f6f5c]/20' : 'border-gray-200'
+        }`;
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold tracking-wider text-gray-900">${st.code} · ${st.name}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full ${isAct ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'bg-gray-100 text-gray-500'}">
+                ${isAct ? '当前激活' : '点击切换'}
+              </span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">${st.moodDesc}</p>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">MATERIAL PALETTE 色板配比</div>
+            <div class="flex h-8 rounded-lg overflow-hidden border border-gray-200 mb-3">
+              <div class="flex-1" style="background:${st.swatches[0]}"></div>
+              <div class="flex-1" style="background:${st.swatches[1]}"></div>
+              <div class="flex-1" style="background:${st.swatches[2]}"></div>
+            </div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase mb-1.5">KEY SELECTION 核心构件与家具选型</div>
+            <ul class="space-y-1 text-xs text-gray-700 mb-4">
+              ${st.furnitureList.map(f => `<li class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span><span>${f}</span></li>`).join('')}
+            </ul>
+          </div>
+          <button type="button" class="w-full py-2 rounded-lg text-xs font-semibold transition ${
+            isAct ? 'bg-[#1f6f5c] text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'
+          }">
+            ${isAct ? '✓ 正在使用该方案' : '应用此套风格至 3D 场景'}
+          </button>
+        `;
+        card.querySelector('button').addEventListener('click', () => {
+          state.styleId = st.id;
+          buildSceneForCurrentDomain();
+          updateAllUI();
+          renderMoodboardModal();
+          showToast(`已切换至 ${st.code} ${st.name}`);
+        });
+        body.appendChild(card);
+      });
+    }
+
+    document.getElementById('btnOpenMoodboard').addEventListener('click', () => {
+      renderMoodboardModal();
+      const modal = document.getElementById('moodboardModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    });
+    document.getElementById('btnCloseMoodboard').addEventListener('click', () => {
+      const modal = document.getElementById('moodboardModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    });
+
+    // Prompt Modal
+    /**
+     * 复制文本：优先用异步剪贴板 API，失败再回退 execCommand。
+     * 原实现只走 execCommand，在非 HTTPS 或部分浏览器下会静默失败却仍提示"已复制"。
+     */
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (err) {
+        /* 落到回退方案 */
+      }
+
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function renderPromptModal() {
+      const list = document.getElementById('promptTemplatesList');
+      list.innerHTML = '';
+      PROMPT_TEMPLATES.forEach((tpl, idx) => {
+        const box = document.createElement('div');
+        box.className = 'border border-gray-200 rounded-xl p-3.5 bg-gray-50/70 space-y-2';
+        box.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-gray-200 text-gray-700 mr-1.5">${tpl.badge}</span>
+              <span class="font-bold text-gray-900">${tpl.title}</span>
+            </div>
+            <button type="button" class="copy-prompt-btn px-2.5 py-1 rounded bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-medium text-gray-800 shrink-0">
+              复制提示词
+            </button>
+          </div>
+          <pre class="bg-white border border-gray-200 rounded-lg p-3 text-[11px] text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">${tpl.content}</pre>
+        `;
+        box.querySelector('.copy-prompt-btn').addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          const ok = await copyText(tpl.content);
+          showToast(ok ? '✓ 已复制该阶段 AI 提示词到剪贴板' : '✗ 复制失败，请手动选中下方文本复制');
+          if (ok) {
+            const original = btn.textContent;
+            btn.textContent = '已复制 ✓';
+            setTimeout(() => { btn.textContent = original; }, 1600);
+          }
+        });
+        list.appendChild(box);
+      });
+    }
+    document.getElementById('btnOpenPromptModal').addEventListener('click', () => {
+      renderPromptModal();
+      const modal = document.getElementById('promptModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    });
+    document.getElementById('btnClosePromptModal').addEventListener('click', () => {
+      const modal = document.getElementById('promptModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    });
+
+    /********************************************************************
+     * 8. MOUSE / RAYCASTER / WALKTHROUGH KEYBOARD & D-PAD CONTROLS
+     ********************************************************************/
+    const raycaster = new THREE.Raycaster();
+    const mouseVec = new THREE.Vector2();
+    let pointerDownPos = { x: 0, y: 0 };
+
+    container.addEventListener('pointerdown', (e) => {
+      camCtrl.isDragging = true;
+      camCtrl.dragButton = e.button;
+      camCtrl.lastX = e.clientX;
+      camCtrl.lastY = e.clientY;
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!camCtrl.isDragging) return;
+      const dx = e.clientX - camCtrl.lastX;
+      const dy = e.clientY - camCtrl.lastY;
+      camCtrl.lastX = e.clientX;
+      camCtrl.lastY = e.clientY;
+
+      if (state.viewMode === 'walk') {
+        camCtrl.walkYaw -= dx * 0.005;
+        camCtrl.walkPitch = Math.max(-0.65, Math.min(0.65, camCtrl.walkPitch - dy * 0.004));
+      } else if (camCtrl.dragButton === 2 || e.shiftKey) {
+        // Pan
+        const panSpeed = 0.018;
+        camCtrl.targetLookAt.x -= dx * panSpeed;
+        camCtrl.targetLookAt.z -= dy * panSpeed;
+      } else {
+        // Orbit
+        camCtrl.targetSpherical.theta -= dx * 0.007;
+        if (state.viewMode !== 'top') {
+          camCtrl.targetSpherical.phi = Math.max(0.12, Math.min(1.42, camCtrl.targetSpherical.phi - dy * 0.006));
+        }
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!camCtrl.isDragging) return;
+      camCtrl.isDragging = false;
+      const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      if (moveDist < 5 && e.target === renderer.domElement) {
+        // Raycast pick space
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseVec.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouseVec, camera);
+        const hits = raycaster.intersectObjects(interactivePickMeshes, false);
+        if (hits.length > 0 && hits[0].object.userData.spaceId) {
+          selectSpace(hits[0].object.userData.spaceId, false);
+        }
+      }
+    });
+
+    container.addEventListener('contextmenu', e => e.preventDefault());
+
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (state.viewMode === 'walk') {
+        const fwd = new THREE.Vector3(-Math.sin(camCtrl.walkYaw), 0, -Math.cos(camCtrl.walkYaw));
+        camCtrl.walkPos.addScaledVector(fwd, -e.deltaY * 0.004);
+      } else {
+        camCtrl.targetSpherical.radius = Math.max(6, Math.min(55, camCtrl.targetSpherical.radius + e.deltaY * 0.015));
+      }
+    }, { passive: false });
+
+    // Keyboard WASD / Arrow Keys
+    window.addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'w' || e.key === 'ArrowUp') camCtrl.keys.w = true;
+      if (k === 's' || e.key === 'ArrowDown') camCtrl.keys.s = true;
+      if (k === 'a' || e.key === 'ArrowLeft') camCtrl.keys.a = true;
+      if (k === 'd' || e.key === 'ArrowRight') camCtrl.keys.d = true;
+      if (e.key === 'Shift') camCtrl.keys.shift = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'w' || e.key === 'ArrowUp') camCtrl.keys.w = false;
+      if (k === 's' || e.key === 'ArrowDown') camCtrl.keys.s = false;
+      if (k === 'a' || e.key === 'ArrowLeft') camCtrl.keys.a = false;
+      if (k === 'd' || e.key === 'ArrowRight') camCtrl.keys.d = false;
+      if (e.key === 'Shift') camCtrl.keys.shift = false;
+    });
+
+    // On-screen D-Pad Buttons for Walkthrough / Pan
+    function stepCameraMove(dirX, dirZ) {
+      if (state.viewMode === 'walk') {
+        const fwd = new THREE.Vector3(-Math.sin(camCtrl.walkYaw), 0, -Math.cos(camCtrl.walkYaw));
+        const right = new THREE.Vector3(Math.cos(camCtrl.walkYaw), 0, -Math.sin(camCtrl.walkYaw));
+        camCtrl.walkPos.addScaledVector(fwd, dirZ * 0.65);
+        camCtrl.walkPos.addScaledVector(right, dirX * 0.65);
+      } else {
+        camCtrl.targetLookAt.x += dirX * 0.9;
+        camCtrl.targetLookAt.z -= dirZ * 0.9;
+      }
+    }
+    document.getElementById('btnWalkForward').addEventListener('click', () => stepCameraMove(0, 1));
+    document.getElementById('btnWalkBack').addEventListener('click', () => stepCameraMove(0, -1));
+    document.getElementById('btnWalkLeft').addEventListener('click', () => stepCameraMove(-1, 0));
+    document.getElementById('btnWalkRight').addEventListener('click', () => stepCameraMove(1, 0));
+
+    /********************************************************************
+     * 9. RESIZE & ANIMATION LOOP
+     ********************************************************************/
+    function handleResize() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w > 0 && h > 0) {
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+      draw2DFloorPlan();
+    }
+    window.addEventListener('resize', handleResize);
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const moveSpeed = camCtrl.keys.shift ? 0.14 : 0.07;
+      if (camCtrl.keys.w || camCtrl.keys.s || camCtrl.keys.a || camCtrl.keys.d) {
+        if (state.viewMode === 'walk') {
+          const fwd = new THREE.Vector3(-Math.sin(camCtrl.walkYaw), 0, -Math.cos(camCtrl.walkYaw));
+          const right = new THREE.Vector3(Math.cos(camCtrl.walkYaw), 0, -Math.sin(camCtrl.walkYaw));
+          if (camCtrl.keys.w) camCtrl.walkPos.addScaledVector(fwd, moveSpeed);
+          if (camCtrl.keys.s) camCtrl.walkPos.addScaledVector(fwd, -moveSpeed);
+          if (camCtrl.keys.d) camCtrl.walkPos.addScaledVector(right, moveSpeed);
+          if (camCtrl.keys.a) camCtrl.walkPos.addScaledVector(right, -moveSpeed);
+        } else {
+          if (camCtrl.keys.w) camCtrl.targetLookAt.z -= moveSpeed;
+          if (camCtrl.keys.s) camCtrl.targetLookAt.z += moveSpeed;
+          if (camCtrl.keys.a) camCtrl.targetLookAt.x -= moveSpeed;
+          if (camCtrl.keys.d) camCtrl.targetLookAt.x += moveSpeed;
+        }
+      }
+
+      if (state.viewMode === 'walk') {
+        camera.position.lerp(camCtrl.walkPos, 0.22);
+        const lookTarget = new THREE.Vector3(
+          camera.position.x - Math.sin(camCtrl.walkYaw) * Math.cos(camCtrl.walkPitch) * 5,
+          camera.position.y + Math.sin(camCtrl.walkPitch) * 5,
+          camera.position.z - Math.cos(camCtrl.walkYaw) * Math.cos(camCtrl.walkPitch) * 5
+        );
+        camera.lookAt(lookTarget);
+      } else if (state.viewMode !== 'plan') {
+        // Smooth damping for Orbit / Axon / Top camera
+        camCtrl.spherical.radius += (camCtrl.targetSpherical.radius - camCtrl.spherical.radius) * 0.14;
+        camCtrl.spherical.phi += (camCtrl.targetSpherical.phi - camCtrl.spherical.phi) * 0.14;
+        camCtrl.spherical.theta += (camCtrl.targetSpherical.theta - camCtrl.spherical.theta) * 0.14;
+        camCtrl.target.lerp(camCtrl.targetLookAt, 0.14);
+
+        const r = camCtrl.spherical.radius;
+        const p = camCtrl.spherical.phi;
+        const t = camCtrl.spherical.theta;
+        camera.position.set(
+          camCtrl.target.x + r * Math.sin(p) * Math.sin(t),
+          camCtrl.target.y + r * Math.cos(p),
+          camCtrl.target.z + r * Math.sin(p) * Math.cos(t)
+        );
+        camera.lookAt(camCtrl.target);
+      }
+
+      if (state.viewMode !== 'plan') {
+        renderer.render(scene, camera);
+        updateSpaceLabelsProjection();
+      }
+    }
+
+    window.onload = () => {
+      handleResize();
+      buildSceneForCurrentDomain();
+      updateAllUI();
+      animate();
+    };
+  </script>
+</body>
+</html>
