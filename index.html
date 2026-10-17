@@ -2735,8 +2735,10 @@
     const raycaster = new THREE.Raycaster();
     const mouseVec = new THREE.Vector2();
     let pointerDownPos = { x: 0, y: 0 };
+    const activeTouchPointers = new Set(); // REV 02.4: detect single-touch orbit only
 
     container.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') activeTouchPointers.add(e.pointerId);
       camCtrl.isDragging = true;
       camCtrl.dragButton = e.button;
       camCtrl.lastX = e.clientX;
@@ -2746,6 +2748,8 @@
 
     window.addEventListener('pointermove', (e) => {
       if (!camCtrl.isDragging) return;
+      const singleTouchOrbit = e.pointerType === 'touch' && activeTouchPointers.size === 1;
+      if (e.pointerType === 'touch' && !singleTouchOrbit) return;
       const dx = e.clientX - camCtrl.lastX;
       const dy = e.clientY - camCtrl.lastY;
       camCtrl.lastX = e.clientX;
@@ -2761,14 +2765,15 @@
         camCtrl.targetLookAt.z -= dy * panSpeed;
       } else {
         // Orbit
-        camCtrl.targetSpherical.theta -= dx * 0.007;
+        camCtrl.targetSpherical.theta -= dx * (singleTouchOrbit ? 0.012 : 0.007);
         if (state.viewMode !== 'top') {
-          camCtrl.targetSpherical.phi = Math.max(0.12, Math.min(1.42, camCtrl.targetSpherical.phi - dy * 0.006));
+          camCtrl.targetSpherical.phi = Math.max(0.12, Math.min(1.42, camCtrl.targetSpherical.phi - dy * (singleTouchOrbit ? 0.010 : 0.006)));
         }
       }
     });
 
     window.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'touch') activeTouchPointers.delete(e.pointerId);
       if (!camCtrl.isDragging) return;
       camCtrl.isDragging = false;
       const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
@@ -2783,6 +2788,11 @@
           selectSpace(hits[0].object.userData.spaceId, false);
         }
       }
+    });
+
+    window.addEventListener('pointercancel', (e) => {
+      if (e.pointerType === 'touch') activeTouchPointers.delete(e.pointerId);
+      camCtrl.isDragging = false;
     });
 
     container.addEventListener('contextmenu', e => e.preventDefault());
@@ -2877,9 +2887,10 @@
         camera.lookAt(lookTarget);
       } else if (state.viewMode !== 'plan') {
         // Smooth damping for Orbit / Axon / Top camera
+        const orbitDamping = camCtrl.isDragging && activeTouchPointers.size === 1 ? 0.20 : 0.14;
         camCtrl.spherical.radius += (camCtrl.targetSpherical.radius - camCtrl.spherical.radius) * 0.14;
-        camCtrl.spherical.phi += (camCtrl.targetSpherical.phi - camCtrl.spherical.phi) * 0.14;
-        camCtrl.spherical.theta += (camCtrl.targetSpherical.theta - camCtrl.spherical.theta) * 0.14;
+        camCtrl.spherical.phi += (camCtrl.targetSpherical.phi - camCtrl.spherical.phi) * orbitDamping;
+        camCtrl.spherical.theta += (camCtrl.targetSpherical.theta - camCtrl.spherical.theta) * orbitDamping;
         camCtrl.target.lerp(camCtrl.targetLookAt, 0.14);
 
         const r = camCtrl.spherical.radius;
