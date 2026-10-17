@@ -222,6 +222,35 @@
       #moodboardModal .text-gray-700, #moodboardModal .text-gray-800, #moodboardModal .text-gray-900 { color: #f2f7ff !important; }
       #promptModal button, #moodboardModal button { min-height: 36px; }
     }
+
+    /* REV 02.3: mobile controls remain accessible without covering the model */
+    @media (max-width: 767px) {
+      header { align-content: start; }
+      header > div:first-child { display: contents; }
+      header nav { order: 5; width: 100%; flex: 1 1 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+      header > div:nth-child(2) { order: 6; width: 100%; flex: 1 1 100%; min-width: 0; overflow-x: auto; }
+      header > div:last-child { order: 7; }
+      header .domain-tab, header .view-tab { min-height: 40px; }
+      #mobileLayersToggle { display: block !important; position: absolute; top: 8px; right: 8px; z-index: 25; min-width: 46px; min-height: 42px; }
+      #rightViewerControls { display: none; top: 56px !important; right: 8px !important; width: min(235px, 72vw) !important; max-height: min(55%, 330px); overflow: auto; }
+      #rightViewerControls.mobile-expanded { display: block; }
+      #selectedSpaceCard { width: min(300px, calc(100% - 16px)) !important; max-height: 100px; bottom: 8px !important; overflow: auto; }
+      #walkControlsOverlay { left: 8px !important; bottom: 112px !important; }
+      #walkControlsOverlay .text-\[10px\] { display: none; }
+      #bottomRightControls { bottom: 112px !important; right: 8px !important; }
+      #bottomRightControls #btnToggleLighting span { font-size: 0; }
+      #bottomRightControls #btnToggleLighting span::after { content: '☀ 光影'; font-size: 12px; }
+      #hudViewTitle { max-width: calc(100% - 110px); }
+      .label-3d { font-size: 11px !important; max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    }
+    @media (max-width: 767px) and (orientation: landscape) {
+      #rightViewerControls { max-height: 65%; }
+      #selectedSpaceCard { max-height: 58px; width: min(245px, 46vw) !important; }
+      #walkControlsOverlay { bottom: 8px !important; left: 8px !important; }
+      #bottomRightControls { bottom: 8px !important; }
+    }
+    #mobileLayersToggle { display: none; }
+    #labelsOverlay .label-3d:focus-visible, #mobileLayersToggle:focus-visible { outline: 3px solid #38bdf8; outline-offset: 2px; }
   </style>
 
   <!-- Tailwind 静态构建产物（21 KB），替代 cdn.tailwindcss.com 的运行时编译 -->
@@ -648,7 +677,7 @@
 <body class="flex flex-col h-screen w-screen overflow-hidden bg-[#f3f3f1]">
 
   <!-- 移动端抽屉遮罩 -->
-  <div id="sidebarScrim"></div>
+  <div id="sidebarScrim" aria-hidden="true"></div>
 
   <!-- TOP HEADER BAR -->
   <header class="h-12 bg-white border-b border-gray-200 px-3 flex items-center justify-between shrink-0 z-30">
@@ -842,13 +871,13 @@
           <div class="absolute top-4 right-4 glass-panel rounded-xl p-3 w-52 shadow-sm z-20">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-gray-700">原始图纸轴网</span>
-              <input type="checkbox" id="toggleCadGrid" checked class="rounded text-emerald-700 focus:ring-0">
+              <input aria-label="显示原始图纸轴网" type="checkbox" id="toggleCadGrid" checked class="rounded text-emerald-700 focus:ring-0">
             </div>
             <div class="flex items-center justify-between text-[11px] text-gray-500 mb-1">
               <span>蓝图标注叠加</span>
               <span id="cadOpacityVal">85%</span>
             </div>
-            <input type="range" id="sliderCadOpacity" min="0" max="100" value="85" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <input aria-label="图纸叠加透明度" type="range" id="sliderCadOpacity" min="0" max="100" value="85" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
           </div>
         </div>
 
@@ -860,32 +889,33 @@
         </div>
 
         <!-- TOP-RIGHT FLOATING VIEWER CONTROLS (Matches Screenshot 1, 3, 4) -->
+        <button type="button" id="mobileLayersToggle" aria-label="展开图层与视图控制" aria-controls="rightViewerControls" aria-expanded="false" class="glass-panel rounded-xl px-3 py-2 shadow-md">☰ 图层</button>
         <div id="rightViewerControls" class="absolute top-4 right-4 glass-panel rounded-xl p-3.5 w-52 shadow-sm space-y-2.5 z-20">
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-700 font-medium">空间名称</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggleSpaceNames" class="sr-only peer" checked>
+              <input aria-label="显示空间名称" type="checkbox" id="toggleSpaceNames" class="sr-only peer" checked>
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-700 font-medium">交通流线</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggleFlowLines" class="sr-only peer" checked>
+              <input aria-label="显示交通流线" type="checkbox" id="toggleFlowLines" class="sr-only peer" checked>
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
           <div class="flex items-center justify-between">
             <span id="labelToggleRoof" class="text-xs text-gray-700 font-medium">显示顶面</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggleRoofTop" class="sr-only peer">
+              <input aria-label="显示顶面" type="checkbox" id="toggleRoofTop" class="sr-only peer">
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
           <div class="flex items-center justify-between">
             <span id="labelToggleDoors" class="text-xs text-gray-700 font-medium">开启平开门</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggleOpenDoors" class="sr-only peer" checked>
+              <input aria-label="开启平开门" type="checkbox" id="toggleOpenDoors" class="sr-only peer" checked>
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
@@ -895,7 +925,7 @@
               <span id="labelWallCut" class="text-gray-600 font-medium">墙体剖切</span>
               <span id="wallCutValueText" class="font-mono text-[11px] text-emerald-800 font-semibold">2.60 m</span>
             </div>
-            <input type="range" id="sliderWallCut" min="0.3" max="3.2" step="0.05" value="2.60" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <input aria-label="墙体剖切高度" type="range" id="sliderWallCut" min="0.3" max="3.2" step="0.05" value="2.60" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
           </div>
         </div>
 
@@ -944,12 +974,12 @@
               <span>太阳高度与日照时刻</span>
               <span id="sunTimeLabel" class="font-mono text-amber-700">14:30</span>
             </div>
-            <input type="range" id="sliderSunTime" min="6" max="22" step="0.5" value="14.5" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <input aria-label="太阳时间" type="range" id="sliderSunTime" min="6" max="22" step="0.5" value="14.5" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
             <div class="flex items-center justify-between text-xs text-gray-600">
               <span>环境光强度</span>
               <span id="ambientValLabel" class="font-mono">100%</span>
             </div>
-            <input type="range" id="sliderAmbient" min="30" max="150" step="5" value="100" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <input aria-label="环境光强度" type="range" id="sliderAmbient" min="30" max="150" step="5" value="100" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
           </div>
 
           <div class="flex items-center gap-1.5">
@@ -1920,6 +1950,7 @@
             ? 'active-label bg-[#1f6f5c] text-white border-[#134e40]'
             : 'bg-white/90 text-gray-800 border-gray-300 hover:border-emerald-600'
         }`;
+        el.setAttribute('aria-label', `选择空间 ${sp.id} ${sp.name}`);
         el.innerHTML = `<span class="opacity-65 font-mono text-[10px]">${sp.id}</span><span>${sp.name}</span>`;
         el.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -1937,19 +1968,27 @@
     function updateSpaceLabelsProjection() {
       if (!state.showSpaceNames || state.viewMode === 'plan') {
         labelsOverlay.style.display = 'none';
+        spaceLabelElements.forEach(item => { item.el.tabIndex = -1; });
         return;
       }
       labelsOverlay.style.display = 'block';
       const width = container.clientWidth;
       const height = container.clientHeight;
 
+      let mobileLabelCount = 0;
+      const compactLabels = window.matchMedia('(max-width: 767px)').matches;
       spaceLabelElements.forEach(item => {
+        const visibleOnMobile = !compactLabels || item.spaceId === state.selectedSpaceId || mobileLabelCount < 3;
+        if (!visibleOnMobile) { item.el.style.display = 'none'; item.el.tabIndex = -1; return; }
         const v = item.pos.clone();
         v.project(camera);
         if (v.z > 1) {
           item.el.style.display = 'none';
+          item.el.tabIndex = -1;
           return;
         }
+        item.el.tabIndex = 0;
+        if (compactLabels && item.spaceId !== state.selectedSpaceId) mobileLabelCount++;
         const x = (v.x * 0.5 + 0.5) * width;
         const y = (-(v.y * 0.5) + 0.5) * height;
         item.el.style.display = 'flex';
@@ -2438,6 +2477,23 @@
       draw2DFloorPlan();
     });
 
+    // REV 02.3 mobile viewer panel: collapsed by default, with real focus management.
+    const mobileLayersToggle = document.getElementById('mobileLayersToggle');
+    const mobileLayersPanel = document.getElementById('rightViewerControls');
+    const mobileLayersQuery = window.matchMedia('(max-width: 767px)');
+    function syncMobileLayers() {
+      const shown = !mobileLayersQuery.matches || mobileLayersPanel.classList.contains('mobile-expanded');
+      mobileLayersPanel.toggleAttribute('inert', !shown);
+      mobileLayersToggle.setAttribute('aria-expanded', String(shown && mobileLayersQuery.matches));
+      mobileLayersToggle.setAttribute('aria-label', shown && mobileLayersQuery.matches ? '收起图层与视图控制' : '展开图层与视图控制');
+    }
+    mobileLayersToggle.addEventListener('click', () => {
+      mobileLayersPanel.classList.toggle('mobile-expanded');
+      syncMobileLayers();
+    });
+    mobileLayersQuery.addEventListener('change', syncMobileLayers);
+    syncMobileLayers();
+
     // Close Selected Space Card
     document.getElementById('btnCloseSpaceCard').addEventListener('click', () => {
       document.getElementById('selectedSpaceCard').classList.add('hidden');
@@ -2467,23 +2523,38 @@
      * 移动端抽屉：侧边栏在窄屏默认收起，避免挤占 3D 画面
      ********************************************************************/
     const sidebarEl = document.querySelector('aside');
+    // Hide off-canvas sidebar from keyboard navigation on mobile.
+    const mobileQuery = window.matchMedia('(max-width: 1023px)');
+    function syncSidebarFocus() {
+      if (mobileQuery.matches && !sidebarEl.classList.contains('drawer-open')) {
+        sidebarEl.setAttribute('inert', '');
+      } else {
+        sidebarEl.removeAttribute('inert');
+      }
+      document.getElementById('btnToggleSidebar').setAttribute('aria-expanded',
+        String(sidebarEl.classList.contains('drawer-open')));
+    }
+    mobileQuery.addEventListener('change', syncSidebarFocus);
     const sidebarScrim = document.getElementById('sidebarScrim');
     const btnToggleSidebar = document.getElementById('btnToggleSidebar');
 
     function openSidebar() {
       sidebarEl.classList.add('drawer-open');
       sidebarScrim.classList.add('show');
+      syncSidebarFocus();
     }
 
     function closeSidebar() {
       sidebarEl.classList.remove('drawer-open');
       sidebarScrim.classList.remove('show');
+      syncSidebarFocus();
     }
 
     btnToggleSidebar.addEventListener('click', () => {
       sidebarEl.classList.contains('drawer-open') ? closeSidebar() : openSidebar();
     });
     sidebarScrim.addEventListener('click', closeSidebar);
+    syncSidebarFocus();
 
     // 选中空间 / 切换风格后自动收起抽屉，把画面还给用户
     sidebarEl.addEventListener('click', (e) => {
