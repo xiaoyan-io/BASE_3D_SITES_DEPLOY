@@ -59,612 +59,6 @@
     input[type="range"] {
       accent-color: #2b7a68;
     }
-
-    /* 全局禁选会影响复制提示词，这里把文本类元素放开 */
-    input, textarea, select, pre, code, [contenteditable="true"],
-    .selectable, .prompt-box {
-      user-select: text;
-      -webkit-user-select: text;
-    }
-
-    /* ================= 移动端适配 ================= */
-    /* 抽屉遮罩 */
-    #sidebarScrim {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.35);
-      z-index: 39;
-      backdrop-filter: blur(2px);
-    }
-
-    #btnToggleSidebar { display: none; }
-
-    @media (max-width: 1023px) {
-      /* 顶栏改为可换行 + 横向滚动，避免按钮被压成竖排单字 */
-      header {
-        height: auto !important;
-        min-height: 48px;
-        flex-wrap: wrap;
-        gap: 6px 8px;
-        padding: 6px 8px;
-      }
-
-      header > div {
-        flex-shrink: 0;
-      }
-
-      /* 领域页签 / 视图页签在窄屏可横向滑动 */
-      header nav,
-      header > div:nth-child(2) {
-        overflow-x: auto;
-        scrollbar-width: none;
-        max-width: 100%;
-      }
-
-      header nav::-webkit-scrollbar,
-      header > div:nth-child(2)::-webkit-scrollbar {
-        display: none;
-      }
-
-      .domain-tab, .view-tab {
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      /* 侧边栏变抽屉 */
-      #btnToggleSidebar { display: inline-flex; }
-
-      aside {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: 260px;
-        max-width: 82vw;
-        transform: translateX(-100%);
-        transition: transform 0.22s ease;
-        /* 必须压过遮罩（z-39）：aside 自带 z-20 工具类，优先级高于元素选择器 */
-        z-index: 40 !important;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
-      }
-
-      aside.drawer-open {
-        transform: translateX(0);
-      }
-
-      #sidebarScrim.show {
-        display: block;
-      }
-
-      /* 视口浮层收边，避免在手机上盖满画面 */
-      #rightViewerControls {
-        width: 168px !important;
-        padding: 8px !important;
-        top: 8px !important;
-        right: 8px !important;
-        max-height: calc(100% - 16px);
-        overflow-y: auto;
-      }
-
-      #selectedSpaceCard {
-        width: calc(100% - 16px) !important;
-        left: 8px !important;
-        right: 8px !important;
-        bottom: 8px !important;
-        padding: 10px !important;
-      }
-
-      #walkControlsOverlay {
-        left: 8px !important;
-        transform: none !important;
-        bottom: 86px !important;
-        align-items: flex-start !important;
-      }
-
-      #bottomRightControls {
-        bottom: 86px !important;
-        right: 8px !important;
-      }
-
-      #lightingPopover {
-        width: 200px !important;
-      }
-
-      #plan2dOverlay > .glass-panel {
-        top: 8px !important;
-        right: 8px !important;
-        width: 168px !important;
-        padding: 8px !important;
-      }
-    }
-
-    @media (max-width: 640px) {
-      /* 小屏隐藏 HUD 标题与底部提示，给 3D 画面让路 */
-      #hudViewTitle { font-size: 14px !important; }
-      #hudViewSub, #hudStyleTag { display: none; }
-
-      footer #footerHintText { display: none; }
-
-      #rightViewerControls {
-        width: 148px !important;
-      }
-
-      /* 选中空间卡在小屏改为紧凑底部条 */
-      #cardSpaceDesc,
-      #cardConnectedBlock {
-        display: none;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-    }
-
-    /* REV 02: compact, legible mobile prompt and reference modals */
-    @media (max-width: 768px) {
-      #promptModal, #moodboardModal { padding: 8px !important; align-items: center; }
-      #promptModal > div, #moodboardModal > div { width: 100%; max-height: 85vh; max-height: 85dvh; }
-      #promptModal > div > div:first-child, #moodboardModal > div > div:first-child { flex-shrink: 0; gap: 10px; }
-      #promptModal > div > div:last-child, #moodboardModal > div > div:last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-      #promptModal .bg-white, #moodboardModal .bg-white,
-      #promptModal .bg-gray-50, #moodboardModal .bg-gray-50 { background-color: #102b48 !important; }
-      #promptModal .text-gray-400, #promptModal .text-gray-500, #promptModal .text-gray-600,
-      #moodboardModal .text-gray-400, #moodboardModal .text-gray-500, #moodboardModal .text-gray-600 { color: #d8e7f8 !important; }
-      #promptModal .text-gray-700, #promptModal .text-gray-800, #promptModal .text-gray-900,
-      #moodboardModal .text-gray-700, #moodboardModal .text-gray-800, #moodboardModal .text-gray-900 { color: #f2f7ff !important; }
-      #promptModal button, #moodboardModal button { min-height: 36px; }
-    }
-
-    /* REV 02.3: mobile controls remain accessible without covering the model */
-    @media (max-width: 767px) {
-      header { align-content: start; }
-      header > div:first-child { display: contents; }
-      header nav { order: 5; width: 100%; flex: 1 1 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
-      header > div:nth-child(2) { order: 6; width: 100%; flex: 1 1 100%; min-width: 0; overflow-x: auto; }
-      header > div:last-child { order: 7; }
-      header .domain-tab, header .view-tab { min-height: 40px; }
-      #mobileLayersToggle { display: block !important; position: absolute; top: 8px; right: 8px; z-index: 25; min-width: 46px; min-height: 42px; }
-      #rightViewerControls { display: none; top: 56px !important; right: 8px !important; width: min(235px, 72vw) !important; max-height: min(55%, 330px); overflow: auto; }
-      #rightViewerControls.mobile-expanded { display: block; }
-      #selectedSpaceCard { width: min(300px, calc(100% - 16px)) !important; max-height: 100px; bottom: 8px !important; overflow: auto; }
-      #walkControlsOverlay { left: 8px !important; bottom: 112px !important; }
-      #walkControlsOverlay .text-\[10px\] { display: none; }
-      #bottomRightControls { bottom: 112px !important; right: 8px !important; }
-      #bottomRightControls #btnToggleLighting span { font-size: 0; }
-      #bottomRightControls #btnToggleLighting span::after { content: '☀ 光影'; font-size: 12px; }
-      #hudViewTitle { max-width: calc(100% - 110px); }
-      .label-3d { font-size: 11px !important; max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    }
-    @media (max-width: 767px) and (orientation: landscape) {
-      #rightViewerControls { max-height: 65%; }
-      #selectedSpaceCard { max-height: 58px; width: min(245px, 46vw) !important; }
-      #walkControlsOverlay { bottom: 8px !important; left: 8px !important; }
-      #bottomRightControls { bottom: 8px !important; }
-    }
-    #mobileLayersToggle { display: none; }
-    #labelsOverlay .label-3d:focus-visible, #mobileLayersToggle:focus-visible { outline: 3px solid #38bdf8; outline-offset: 2px; }
-  </style>
-
-  <!-- Tailwind 静态构建产物（21 KB），替代 cdn.tailwindcss.com 的运行时编译 -->
-  <link rel="stylesheet" href="vendor/tailwind/tailwind.css">
-
-  <style id="nalen-ui-theme">
-    :root {
-      color-scheme: dark;
-      --nalen-ink: #eaf4ff;
-      --nalen-muted: #8ea9c7;
-      --nalen-bg: #06172b;
-      --nalen-panel: #0a2039;
-      --nalen-panel-raised: #0d2a49;
-      --nalen-line: rgba(133, 180, 224, 0.2);
-      --nalen-blue: #168dff;
-      --nalen-cyan: #58d0ff;
-      --nalen-blue-soft: rgba(22, 141, 255, 0.13);
-    }
-
-    html, body {
-      background: var(--nalen-bg) !important;
-      color: var(--nalen-ink);
-    }
-
-    body {
-      background-image: radial-gradient(ellipse at 48% -28%, rgba(25, 111, 190, 0.2), transparent 58%);
-    }
-
-    header {
-      background: linear-gradient(108deg, #061426 0%, #0b2948 52%, #07182e 100%) !important;
-      border-color: var(--nalen-line) !important;
-      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.2);
-      color: var(--nalen-ink);
-    }
-
-    header .text-gray-900, header .text-gray-800, header .text-gray-700,
-    header .text-gray-600, header .text-gray-500, header .text-gray-400 {
-      color: var(--nalen-ink) !important;
-    }
-
-    header .text-gray-500, header .text-gray-400 { color: var(--nalen-muted) !important; }
-
-    header nav, header > div:nth-child(2) {
-      background: rgba(2, 13, 27, 0.52) !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    header .border-gray-200, header .border-gray-200\/80,
-    header .border-transparent {
-      border-color: var(--nalen-line) !important;
-    }
-
-    header .domain-tab, header .view-tab, header .render-tab {
-      color: #9bb5d1 !important;
-      background: transparent !important;
-      border-color: transparent !important;
-      box-shadow: none;
-    }
-
-    header .domain-tab:hover, header .view-tab:hover, header .render-tab:hover {
-      color: #ffffff !important;
-      background: rgba(83, 165, 242, 0.1) !important;
-    }
-
-    header .domain-tab[class*="bg-white"],
-    header .render-tab[class*="bg-white"] {
-      color: #f3f9ff !important;
-      background: linear-gradient(135deg, #164a78, #0b2d4d) !important;
-      border: 1px solid rgba(88, 208, 255, 0.32) !important;
-      box-shadow: inset 0 1px rgba(255,255,255,0.06), 0 3px 14px rgba(22,141,255,0.12) !important;
-    }
-
-    header .view-tab[class*="bg-[#e6f2ef]"] {
-      color: #c7efff !important;
-      background: linear-gradient(135deg, #123e65, #0b2b4a) !important;
-      border-color: rgba(88, 208, 255, 0.42) !important;
-      box-shadow: inset 0 1px rgba(255,255,255,0.06), 0 3px 14px rgba(22,141,255,0.12) !important;
-    }
-
-    #btnToggleSidebar, #btnSaveLayout, #btnExportJson, #btnImportJson {
-      color: var(--nalen-ink) !important;
-      background: rgba(255,255,255,0.045) !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    #btnOpenMoodboard, #btnOpenPromptModal {
-      color: #c9efff !important;
-      background: rgba(22,141,255,0.12) !important;
-      border-color: rgba(88,208,255,0.34) !important;
-    }
-
-    #btnOpenMoodboard:hover, #btnOpenPromptModal:hover,
-    #btnToggleSidebar:hover, #btnSaveLayout:hover, #btnExportJson:hover, #btnImportJson:hover {
-      background: rgba(22,141,255,0.2) !important;
-      border-color: rgba(88,208,255,0.55) !important;
-    }
-
-    aside {
-      color: var(--nalen-ink);
-      background: linear-gradient(180deg, #091d34 0%, #07172a 100%) !important;
-      border-color: var(--nalen-line) !important;
-      box-shadow: 10px 0 32px rgba(0,0,0,0.12);
-    }
-
-    aside .text-gray-900, aside .text-gray-800, aside .text-gray-700,
-    aside .text-gray-600 { color: #dceaff !important; }
-
-    aside .text-gray-500, aside .text-gray-400 { color: var(--nalen-muted) !important; }
-
-    aside .bg-white, aside .bg-gray-50, aside .bg-gray-50\/50 {
-      background: rgba(255,255,255,0.025) !important;
-    }
-
-    aside .border-gray-100, aside .border-gray-200, aside .divide-gray-50 > :not([hidden]) ~ :not([hidden]) {
-      border-color: var(--nalen-line) !important;
-    }
-
-    #spaceListContainer button { border-bottom: 1px solid rgba(133,180,224,0.08); }
-    #spaceListContainer button:hover {
-      color: #f4faff !important;
-      background: rgba(22,141,255,0.09) !important;
-    }
-
-    #spaceListContainer button[class*="bg-[#e6f2ef]"] {
-      color: #c8efff !important;
-      background: linear-gradient(90deg, rgba(22,141,255,0.2), rgba(22,141,255,0.045)) !important;
-      border-left-color: var(--nalen-cyan) !important;
-    }
-
-    #styleGridContainer button {
-      color: var(--nalen-ink) !important;
-      background: #0b2340 !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    #styleGridContainer button:hover {
-      border-color: rgba(88,208,255,0.42) !important;
-      background: #103052 !important;
-    }
-
-    #styleGridContainer button[class*="bg-[#f2f9f7]"] {
-      background: linear-gradient(135deg, #12395c, #0b2541) !important;
-      border-color: rgba(88,208,255,0.48) !important;
-      box-shadow: inset 0 0 0 1px rgba(22,141,255,0.08), 0 4px 18px rgba(0,0,0,0.12) !important;
-    }
-
-    #styleGridContainer .text-gray-900 { color: #edf7ff !important; }
-    #styleGridContainer .text-gray-600 { color: #a8c0d9 !important; }
-
-    aside .peer:checked + div { background-color: var(--nalen-blue) !important; }
-    input[type="range"] { accent-color: var(--nalen-blue) !important; }
-
-    main { background: #07172a !important; }
-
-    main > div:first-child {
-      background: rgba(8, 29, 51, 0.96) !important;
-      border-color: var(--nalen-line) !important;
-      color: var(--nalen-ink);
-    }
-
-    main > div:first-child .text-gray-700,
-    main > div:first-child .text-gray-600,
-    main > div:first-child .text-gray-500,
-    main > div:first-child .text-gray-400 {
-      color: var(--nalen-muted) !important;
-    }
-
-    #cameraPresetSelect, select, option {
-      color: var(--nalen-ink);
-      background-color: #0c2744;
-      border-color: var(--nalen-line);
-    }
-
-    .glass-panel, #rightViewerControls, #selectedSpaceCard, #lightingPopover,
-    #plan2dOverlay > .glass-panel {
-      color: var(--nalen-ink);
-      background: rgba(7, 25, 46, 0.9) !important;
-      border: 1px solid rgba(133,180,224,0.23) !important;
-      box-shadow: 0 14px 36px rgba(0,0,0,0.25), inset 0 1px rgba(255,255,255,0.035) !important;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-    }
-
-    #rightViewerControls .text-gray-900, #rightViewerControls .text-gray-800,
-    #rightViewerControls .text-gray-700, #rightViewerControls .text-gray-600,
-    #selectedSpaceCard .text-gray-900, #selectedSpaceCard .text-gray-800,
-    #selectedSpaceCard .text-gray-700, #selectedSpaceCard .text-gray-600,
-    #lightingPopover .text-gray-900, #lightingPopover .text-gray-800,
-    #lightingPopover .text-gray-700, #lightingPopover .text-gray-600 {
-      color: #dceaff !important;
-    }
-
-    #rightViewerControls .text-gray-500, #rightViewerControls .text-gray-400,
-    #selectedSpaceCard .text-gray-500, #selectedSpaceCard .text-gray-400,
-    #lightingPopover .text-gray-500, #lightingPopover .text-gray-400 {
-      color: var(--nalen-muted) !important;
-    }
-
-    #rightViewerControls .border-gray-200, #selectedSpaceCard .border-gray-200,
-    #lightingPopover .border-gray-200, #lightingPopover .border-gray-200\/80 {
-      border-color: var(--nalen-line) !important;
-    }
-
-    #cardSpaceName { color: #f1f8ff !important; }
-    #cardSpaceArea {
-      color: #c7efff !important;
-      background: rgba(22,141,255,0.13) !important;
-      border-color: rgba(88,208,255,0.3) !important;
-    }
-
-    #cardConnectedLinks button {
-      color: #c5eaff !important;
-      background: rgba(22,141,255,0.12) !important;
-      border-color: rgba(88,208,255,0.24) !important;
-    }
-
-    #cardConnectedLinks button:hover {
-      background: rgba(22,141,255,0.22) !important;
-      border-color: rgba(88,208,255,0.45) !important;
-    }
-
-    .label-3d.active-label {
-      background: #0876d9 !important;
-      border-color: #72d9ff !important;
-      box-shadow: 0 4px 18px rgba(22,141,255,0.38) !important;
-    }
-
-    #walkControlsOverlay .bg-white\/80 {
-      color: #cde9ff !important;
-      background: rgba(7,25,46,0.82) !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    #bottomRightControls button {
-      color: #dceeff !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    footer {
-      color: var(--nalen-muted) !important;
-      background: #061426 !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    #moodboardModal > div, #promptModal > div {
-      color: var(--nalen-ink) !important;
-      background: #091d34 !important;
-      border-color: var(--nalen-line) !important;
-    }
-
-    #moodboardModal .border-gray-200, #promptModal .border-gray-200 {
-      border-color: var(--nalen-line) !important;
-    }
-
-    #moodboardModal .text-gray-900, #promptModal .text-gray-900,
-    #moodboardModal .text-gray-800, #promptModal .text-gray-800,
-    #moodboardModal .text-gray-700, #promptModal .text-gray-700 {
-      color: #e5f1ff !important;
-    }
-
-    #moodboardModal .text-gray-600, #promptModal .text-gray-600,
-    #moodboardModal .text-gray-500, #promptModal .text-gray-500,
-    #moodboardModal .text-gray-400, #promptModal .text-gray-400 {
-      color: var(--nalen-muted) !important;
-    }
-
-    #moodboardBody, #promptTemplatesList {
-      background: #07182c !important;
-    }
-
-    #promptModal .bg-emerald-50 {
-      color: #d3efff !important;
-      background: rgba(22,141,255,0.1) !important;
-      border-color: rgba(88,208,255,0.25) !important;
-    }
-
-    button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
-      outline: 2px solid var(--nalen-cyan) !important;
-      outline-offset: 2px;
-    }
-
-    @media (max-width: 1023px) {
-      header { box-shadow: 0 5px 18px rgba(0,0,0,0.22); }
-      header nav, header > div:nth-child(2) { scrollbar-width: none; }
-    }
-
-    @media (max-width: 640px) {
-      /* 手机端把顶栏拆成可控的纵向层级，避免领域与工具按钮挤出屏幕 */
-      header {
-        display: grid !important;
-        grid-template-columns: minmax(0, 1fr);
-        align-items: stretch;
-        justify-content: stretch;
-        gap: 6px;
-        height: auto !important;
-        min-height: 0 !important;
-        padding: 7px 8px !important;
-      }
-
-      header > div:first-child {
-        display: grid !important;
-        grid-template-columns: auto minmax(0, 1fr);
-        grid-template-rows: auto auto;
-        gap: 6px 8px;
-        width: 100%;
-        min-width: 0;
-        flex-shrink: 1;
-      }
-
-      header > div:first-child > div:nth-child(2) {
-        min-width: 0;
-        overflow: hidden;
-      }
-
-      header > div:first-child > div:nth-child(3) {
-        display: none !important;
-      }
-
-      header > div:first-child > nav {
-        grid-column: 1 / -1;
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        justify-content: flex-start;
-        overflow-x: auto;
-      }
-
-      header .leading-tight > div:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      header > div:nth-child(2), header > div:nth-child(3) {
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        flex-shrink: 1;
-        justify-content: flex-start;
-        overflow-x: auto;
-      }
-
-      header > div:nth-child(2) { gap: 2px; }
-      header > div:nth-child(3) { gap: 6px; padding-bottom: 1px; }
-      header > div:nth-child(3) button { flex-shrink: 0; }
-      .domain-tab, .view-tab { flex-shrink: 0; }
-
-      #rightViewerControls {
-        width: 148px !important;
-        max-width: calc(100vw - 16px) !important;
-        left: auto !important;
-        right: 8px !important;
-        top: 8px !important;
-      }
-
-      #bottomRightControls {
-        right: 8px !important;
-        max-width: calc(100vw - 16px);
-      }
-
-      #bottomRightControls > div:last-child {
-        max-width: calc(100vw - 16px);
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      #bottomRightControls #btnToggleLighting {
-        max-width: calc(100vw - 56px);
-        overflow: hidden;
-        white-space: nowrap;
-      }
-    }
-
-    @media (max-width: 640px) {
-      /* 次级工具栏允许换行，避免镜头选择与渲染模式互相挤压 */
-      main > div:first-child {
-        height: auto !important;
-        min-height: 40px;
-        flex-wrap: wrap;
-        gap: 6px;
-        padding: 7px 8px !important;
-      }
-
-      main > div:first-child > div:first-child {
-        flex: 1 1 180px;
-        min-width: 0;
-      }
-
-      #cameraPresetSelect {
-        width: clamp(150px, 42vw, 220px);
-        max-width: calc(100vw - 24px);
-      }
-
-      main > div:first-child > div:last-child {
-        flex-shrink: 0;
-        max-width: 100%;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { scroll-behavior: auto !important; }
-    }
-
-    /* NALEN 品牌卡片与控件精修：不修改 Three.js 画布 */
-    .nalen-brand-card { margin:12px 10px 8px; overflow:hidden; flex-shrink:0; border:1px solid rgba(107,184,255,.32); border-radius:12px; background:#081b30; box-shadow:0 9px 26px rgba(0,0,0,.27),inset 0 1px rgba(255,255,255,.06); }
-    .nalen-brand-card img { display:block; width:100%; height:auto; aspect-ratio:960/357; object-fit:cover; }
-    .nalen-brand-caption { display:flex; align-items:center; gap:7px; padding:9px 10px; color:#c2dafa; border-top:1px solid rgba(107,184,255,.17); background:linear-gradient(90deg,#0b2644,#071b30); font-size:9px; font-weight:600; letter-spacing:.1em; white-space:nowrap; }
-    .nalen-live-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; background:#56d2ff; box-shadow:0 0 9px rgba(86,210,255,.75); }
-    .nalen-brand-version { margin-left:auto; color:#7fa2c9; font-size:9px; }
-    header .leading-tight > div:first-child { letter-spacing:.015em; }
-    header .leading-tight > div:last-child { letter-spacing:.15em; }
-    .domain-tab,.view-tab,.render-tab,#styleGridContainer button { transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease; }
-    .domain-tab:hover,.view-tab:hover,#styleGridContainer button:hover { transform:translateY(-1px); }
-    #rightViewerControls,#selectedSpaceCard,#lightingPopover { border-radius:14px !important; }
-    #hudViewTitle { color:#eaf4ff !important; text-shadow:0 2px 12px rgba(0,0,0,.5); }
-    #hudViewSub,#hudStyleTag { color:#a7c9ec !important; text-shadow:0 1px 7px rgba(0,0,0,.55); }
-    #spaceListContainer { scrollbar-color:#24577d transparent; }
-    @media(prefers-reduced-motion:reduce){ .domain-tab:hover,.view-tab:hover,#styleGridContainer button:hover { transform:none; } }
-
-    .nalen-rev02-header-logo { display:block; width:66px; height:38px; object-fit:contain; filter:drop-shadow(0 1px 6px rgba(47,152,255,.23)); }
-    @media (max-width:640px) { .nalen-rev02-header-logo { width:43px; height:30px; } }
   </style>
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden bg-[#f3f3f1]">
@@ -733,11 +127,12 @@
     <!-- Right: Import 3D Model, Style Board, AI Prompt Guide & Backup Actions -->
     <div class="flex items-center gap-1.5">
       <input type="file" id="inputGlbModel" accept=".glb,.gltf" class="hidden" />
-      <button id="btnImportModel" class="px-2.5 py-1 rounded-md text-xs font-semibold border border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 transition flex items-center gap-1 shadow-2xs" title="支持选择或直接拖拽本地 .glb / .gltf 三维模型文件">
+      <button id="btnImportModel" class="px-2.5 py-1 rounded-md text-xs font-semibold border border-[#2b7a68] bg-[#e6f2ef] text-[#1f6f5c] hover:bg-[#d5ebe5] transition flex items-center gap-1 shadow-2xs" title="支持选择或直接拖拽本地 .glb / .gltf 三维模型文件">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>导入 3D 模型</span>
       </button>
-      <button id="btnRestoreDefaultModel" class="px-2 py-1 rounded-md text-xs font-medium border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 transition hidden items-center gap-1" title="清空导入模型并恢复内置空间体块">
+      <button id="btnRestoreDefaultModel" class="px-2.5 py-1 rounded-md text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition flex items-center gap-1 shadow-2xs" title="清空导入模型或复位构件微调并恢复默认体块">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         <span>恢复默认体块</span>
       </button>
       <button id="btnOpenMoodboard" class="px-2.5 py-1 rounded-md text-xs font-medium border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition flex items-center gap-1">
@@ -754,10 +149,6 @@
       <button id="btnExportJson" class="px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 text-[11px] text-gray-700 hidden xl:inline-block">
         下载布局备份
       </button>
-      <button id="btnImportJson" class="px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 text-[11px] text-gray-700 hidden xl:inline-block">
-        导入布局备份
-      </button>
-      <input id="inputImportJson" type="file" accept="application/json,.json" class="hidden" aria-label="导入布局备份 JSON">
     </div>
   </header>
 
@@ -1533,238 +924,6 @@
       keys: { w: false, a: false, s: false, d: false, shift: false }
     };
 
-    const STORAGE_KEY = 'base_spatial_lab_state';
-    const STORAGE_VERSION = '1.0.0';
-    const AUTOSAVE_DELAY_MS = 650;
-    const MAX_IMPORT_BYTES = 1024 * 1024;
-    const MAX_MODEL_IMPORT_BYTES = 100 * 1024 * 1024;
-    const PERSISTED_STATE_KEYS = [
-      'domain', 'viewMode', 'renderMode', 'styleId', 'selectedSpaceId',
-      'showStructureLayer', 'showDesignLayer', 'showSpaceNames', 'showFlowLines',
-      'showRoof', 'openDoors', 'wallCutHeight', 'sunTime', 'sunAzimuth', 'sunElevation', 'ambientPercent',
-      'cadGrid', 'cadOpacity'
-    ];
-    let autosaveTimer = null;
-    let isRestoringState = false;
-
-    function vectorToArray(vector) {
-      return [vector.x, vector.y, vector.z];
-    }
-
-    function createPersistencePayload() {
-      const persistedState = {};
-      PERSISTED_STATE_KEYS.forEach(key => { persistedState[key] = state[key]; });
-      return {
-        storageVersion: STORAGE_VERSION,
-        savedAt: new Date().toISOString(),
-        state: persistedState,
-        camera: {
-          fov: camera.fov,
-          target: vectorToArray(camCtrl.target),
-          targetLookAt: vectorToArray(camCtrl.targetLookAt),
-          spherical: { ...camCtrl.spherical },
-          targetSpherical: { ...camCtrl.targetSpherical },
-          walkPos: vectorToArray(camCtrl.walkPos),
-          walkYaw: camCtrl.walkYaw,
-          walkPitch: camCtrl.walkPitch
-        }
-      };
-    }
-
-    function requireObject(value, label) {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) {
-        throw new Error(`${label} 必须是对象`);
-      }
-      return value;
-    }
-
-    function readEnum(source, key, allowed, fallback) {
-      if (!(key in source)) return fallback;
-      if (!allowed.includes(source[key])) throw new Error(`${key} 的值无效`);
-      return source[key];
-    }
-
-    function readBoolean(source, key, fallback) {
-      if (!(key in source)) return fallback;
-      if (typeof source[key] !== 'boolean') throw new Error(`${key} 必须是布尔值`);
-      return source[key];
-    }
-
-    function readNumber(source, key, min, max, fallback) {
-      if (!(key in source)) return fallback;
-      const value = source[key];
-      if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
-        throw new Error(`${key} 超出允许范围`);
-      }
-      return value;
-    }
-
-    function readVector(source, key, fallback) {
-      if (!(key in source)) return [...fallback];
-      const value = source[key];
-      if (!Array.isArray(value) || value.length !== 3 || value.some(n => typeof n !== 'number' || !Number.isFinite(n) || Math.abs(n) > 10000)) {
-        throw new Error(`${key} 必须是三个有效坐标值`);
-      }
-      return [...value];
-    }
-
-    function readSpherical(source, key, fallback) {
-      if (!(key in source)) return { ...fallback };
-      const value = requireObject(source[key], key);
-      return {
-        radius: readNumber(value, 'radius', 1, 200, fallback.radius),
-        phi: readNumber(value, 'phi', 0.001, Math.PI - 0.001, fallback.phi),
-        theta: readNumber(value, 'theta', -10000, 10000, fallback.theta)
-      };
-    }
-
-    function normalizePersistencePayload(raw) {
-      const root = requireObject(raw, '备份内容');
-      const isVersioned = Object.prototype.hasOwnProperty.call(root, 'storageVersion');
-      if (isVersioned && root.storageVersion !== STORAGE_VERSION) {
-        throw new Error(`不支持的数据版本：${String(root.storageVersion)}`);
-      }
-      if (!isVersioned && Object.prototype.hasOwnProperty.call(root, 'state')) {
-        throw new Error('版本化备份缺少 storageVersion');
-      }
-
-      const sourceState = requireObject(isVersioned ? root.state : root, 'state');
-      if (!PERSISTED_STATE_KEYS.some(key => Object.prototype.hasOwnProperty.call(sourceState, key))) {
-        throw new Error('备份中没有可恢复的布局状态');
-      }
-
-      const domain = readEnum(sourceState, 'domain', Object.keys(DOMAIN_CONFIGS), state.domain);
-      const domainConfig = DOMAIN_CONFIGS[domain];
-      const normalizedState = {
-        domain,
-        viewMode: readEnum(sourceState, 'viewMode', ['perspective', 'axon', 'top', 'plan', 'walk'], state.viewMode),
-        renderMode: readEnum(sourceState, 'renderMode', ['arctic', 'shaded', 'material'], state.renderMode),
-        styleId: readEnum(sourceState, 'styleId', domainConfig.styles.map(item => item.id), domainConfig.styles[0].id),
-        selectedSpaceId: readEnum(sourceState, 'selectedSpaceId', domainConfig.spaces.map(item => item.id), domainConfig.spaces[0].id),
-        showStructureLayer: readBoolean(sourceState, 'showStructureLayer', state.showStructureLayer),
-        showDesignLayer: readBoolean(sourceState, 'showDesignLayer', state.showDesignLayer),
-        showSpaceNames: readBoolean(sourceState, 'showSpaceNames', state.showSpaceNames),
-        showFlowLines: readBoolean(sourceState, 'showFlowLines', state.showFlowLines),
-        showRoof: readBoolean(sourceState, 'showRoof', state.showRoof),
-        openDoors: readBoolean(sourceState, 'openDoors', state.openDoors),
-        wallCutHeight: readNumber(sourceState, 'wallCutHeight', domainConfig.cutMin, domainConfig.cutMax, domainConfig.cutDefault),
-        sunTime: readNumber(sourceState, 'sunTime', 6, 22, state.sunTime),
-        sunAzimuth: readNumber(sourceState, 'sunAzimuth', 0, 360, state.sunAzimuth),
-        sunElevation: readNumber(sourceState, 'sunElevation', 0, 90, state.sunElevation),
-        ambientPercent: readNumber(sourceState, 'ambientPercent', 30, 150, state.ambientPercent),
-        cadGrid: readBoolean(sourceState, 'cadGrid', state.cadGrid),
-        cadOpacity: readNumber(sourceState, 'cadOpacity', 0, 100, state.cadOpacity)
-      };
-
-      let normalizedCamera = null;
-      if (isVersioned && root.camera != null) {
-        const sourceCamera = requireObject(root.camera, 'camera');
-        normalizedCamera = {
-          fov: readNumber(sourceCamera, 'fov', 10, 100, camera.fov),
-          target: readVector(sourceCamera, 'target', vectorToArray(camCtrl.target)),
-          targetLookAt: readVector(sourceCamera, 'targetLookAt', vectorToArray(camCtrl.targetLookAt)),
-          spherical: readSpherical(sourceCamera, 'spherical', camCtrl.spherical),
-          targetSpherical: readSpherical(sourceCamera, 'targetSpherical', camCtrl.targetSpherical),
-          walkPos: readVector(sourceCamera, 'walkPos', vectorToArray(camCtrl.walkPos)),
-          walkYaw: readNumber(sourceCamera, 'walkYaw', -10000, 10000, camCtrl.walkYaw),
-          walkPitch: readNumber(sourceCamera, 'walkPitch', -0.65, 0.65, camCtrl.walkPitch)
-        };
-      }
-      return { storageVersion: STORAGE_VERSION, state: normalizedState, camera: normalizedCamera };
-    }
-
-    function syncStateControls() {
-      const domainConfig = DOMAIN_CONFIGS[state.domain];
-      const wallSlider = document.getElementById('sliderWallCut');
-      wallSlider.min = domainConfig.cutMin;
-      wallSlider.max = domainConfig.cutMax;
-      wallSlider.value = state.wallCutHeight;
-      document.getElementById('wallCutValueText').textContent = `${state.wallCutHeight.toFixed(2)} m`;
-      document.getElementById('toggleStructureLayer').checked = state.showStructureLayer;
-      document.getElementById('toggleDesignLayer').checked = state.showDesignLayer;
-      document.getElementById('toggleSpaceNames').checked = state.showSpaceNames;
-      document.getElementById('toggleFlowLines').checked = state.showFlowLines;
-      document.getElementById('toggleRoofTop').checked = state.showRoof;
-      document.getElementById('toggleOpenDoors').checked = state.openDoors;
-      document.getElementById('toggleCadGrid').checked = state.cadGrid;
-      document.getElementById('sliderCadOpacity').value = state.cadOpacity;
-      document.getElementById('cadOpacityVal').textContent = `${state.cadOpacity}%`;
-      document.getElementById('sliderSunTime').value = state.sunTime;
-      document.getElementById('sliderSunAzimuth').value = state.sunAzimuth;
-      document.getElementById('sliderSunElevation').value = state.sunElevation;
-      const hours = Math.floor(state.sunTime);
-      const minutes = String(Math.round((state.sunTime - hours) * 60)).padStart(2, '0');
-      document.getElementById('sunTimeLabel').textContent = `${String(hours).padStart(2, '0')}:${minutes}`;
-      document.getElementById('sliderAmbient').value = state.ambientPercent;
-      document.getElementById('ambientValLabel').textContent = `${state.ambientPercent}%`;
-    }
-
-    function applyPersistencePayload(payload) {
-      isRestoringState = true;
-      try {
-        Object.assign(state, payload.state);
-        if (payload.camera) {
-          camera.fov = payload.camera.fov;
-          camera.updateProjectionMatrix();
-          camCtrl.target.fromArray(payload.camera.target);
-          camCtrl.targetLookAt.fromArray(payload.camera.targetLookAt);
-          Object.assign(camCtrl.spherical, payload.camera.spherical);
-          Object.assign(camCtrl.targetSpherical, payload.camera.targetSpherical);
-          camCtrl.walkPos.fromArray(payload.camera.walkPos);
-          camCtrl.walkYaw = payload.camera.walkYaw;
-          camCtrl.walkPitch = payload.camera.walkPitch;
-        } else {
-          camera.fov = ({ perspective: 45, axon: 20, top: 26, plan: 26, walk: 62 })[state.viewMode];
-          camera.updateProjectionMatrix();
-        }
-        syncStateControls();
-        buildSceneForCurrentDomain();
-        updateAllUI();
-      } finally {
-        isRestoringState = false;
-      }
-    }
-
-    function savePersistedState(showConfirmation = false) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(createPersistencePayload()));
-        if (showConfirmation) showToast('✓ 已保存当前布局、视图与相机参数至本机');
-        return true;
-      } catch (error) {
-        console.error('保存布局失败', error);
-        if (showConfirmation) showToast('保存失败：浏览器未允许写入本机存储');
-        return false;
-      }
-    }
-
-    function scheduleAutosave() {
-      if (isRestoringState) return;
-      clearTimeout(autosaveTimer);
-      autosaveTimer = setTimeout(() => {
-        autosaveTimer = null;
-        savePersistedState(false);
-      }, AUTOSAVE_DELAY_MS);
-    }
-
-    function flushAutosave() {
-      if (autosaveTimer == null) return;
-      clearTimeout(autosaveTimer);
-      autosaveTimer = null;
-      savePersistedState(false);
-    }
-
-    function loadPersistedState() {
-      try {
-        const serialized = localStorage.getItem(STORAGE_KEY);
-        if (!serialized) return false;
-        applyPersistencePayload(normalizePersistencePayload(JSON.parse(serialized)));
-        return true;
-      } catch (error) {
-        console.warn('已忽略无效的本机布局数据', error);
-        return false;
-      }
-    }
-
     /********************************************************************
      * 4. PROCEDURAL SCENE BUILDER FOR ALL 4 DOMAINS
      ********************************************************************/
@@ -1772,13 +931,7 @@
       while (group.children.length > 0) {
         const child = group.children[0];
         group.remove(child);
-        child.traverse(node => {
-          if (node.geometry) node.geometry.dispose();
-          if (node.material) {
-            const materials = Array.isArray(node.material) ? node.material : [node.material];
-            materials.forEach(material => material.dispose());
-          }
-        });
+        if (child.geometry) child.geometry.dispose();
       }
     }
 
@@ -2143,21 +1296,21 @@
       createWallSegment(2.8, -3.4, 4.0, 3.2, 3.1, styleObj.metalColor, true);
 
       // Cantilevered Upper Exhibition Box (Design Layer)
-      const upperGallery = createBox(11.6, 1.05, 4.2, styleObj.wallColor, 0, 2.15, 1.2);
-      const atriumGlass = createBox(5.0, 2.4, 3.5, 0x93c5fd, 0, 1.3, 3.5, { isGlass: true, opacity: 0.42 });
+      const upperGallery = registerFurniture(createBox(11.6, 1.05, 4.2, styleObj.wallColor, 0, 2.15, 1.2), 'arch_upper_box', '二层悬挑主展厅体块', '西翼悬挑展厅', 11.6, 1.05, 4.2);
+      const atriumGlass = registerFurniture(createBox(5.0, 2.4, 3.5, 0x93c5fd, 0, 1.3, 3.5, { isGlass: true, opacity: 0.42 }), 'arch_atrium_glass', '挑空大堂超白玻幕墙', '主入口挑空大堂', 5.0, 2.4, 3.5);
       designGroup.add(upperGallery, atriumGlass);
 
       // Parametric Louver Fins (Expandable via toggleOpenDoors!)
       const spread = state.openDoors ? 0.35 : 0.0;
       for (let i = -5; i <= 5; i++) {
-        const fin = createBox(0.14, 2.45, 0.32, styleObj.woodColor, i * 1.05, 1.45, 3.45 + spread);
+        const fin = registerFurniture(createBox(0.14, 2.45, 0.32, styleObj.woodColor, i * 1.05, 1.45, 3.45 + spread), `arch_fin_${i}`, `参数化遮阳百叶 #${i + 6}`, '主入口挑空大堂', 0.14, 2.45, 0.32);
         fin.rotation.y = state.openDoors ? 0.45 : 0.05;
         designGroup.add(fin);
       }
 
       // Sky Sculpture Terrace greenery & sculptures
-      const gardenDeck = createBox(3.6, 0.25, 2.4, styleObj.accentColor, -4.6, 1.45, 5.0);
-      const cafePavilion = createBox(3.6, 1.35, 2.4, styleObj.woodColor, 4.6, 0.72, 5.0);
+      const gardenDeck = registerFurniture(createBox(3.6, 0.25, 2.4, styleObj.accentColor, -4.6, 1.45, 5.0), 'arch_garden_deck', '空中雕塑露台景观池', '二层空中雕塑露台', 3.6, 0.25, 2.4);
+      const cafePavilion = registerFurniture(createBox(3.6, 1.35, 2.4, styleObj.woodColor, 4.6, 0.72, 5.0), 'arch_cafe_box', '沿街艺术书店木构亭', '艺术书店与咖啡厅', 3.6, 1.35, 2.4);
       designGroup.add(gardenDeck, cafePavilion);
 
       // Floating Architectural Canopy Roof
@@ -2179,31 +1332,31 @@
       // Twin Supertall TOD Towers (01)
       createWallSegment(-0.85, -1.5, 1.35, 1.35, 3.15, styleObj.wallColor, true);
       createWallSegment(0.85, -1.5, 1.35, 1.35, 2.75, styleObj.wallColor, true);
-      const podiumCBD = createBox(3.6, 0.55, 3.1, styleObj.woodColor, 0, 0.3, -1.5);
+      const podiumCBD = registerFurniture(createBox(3.6, 0.55, 3.1, styleObj.woodColor, 0, 0.3, -1.5), 'urban_cbd_podium', 'TOD双子塔商业裙房', 'TOD中央商务核心区', 3.6, 0.55, 3.1);
       designGroup.add(podiumCBD);
 
       // Tech Innovation Hub Courtyard Blocks (03)
       createWallSegment(-5.4, -1.8, 1.1, 3.2, 2.0, styleObj.wallColor, false);
       createWallSegment(-3.8, -1.8, 1.1, 3.2, 1.7, styleObj.wallColor, false);
-      const campusPark = createBox(1.4, 0.15, 2.2, styleObj.accentColor, -4.6, 0.1, -1.8);
+      const campusPark = registerFurniture(createBox(1.4, 0.15, 2.2, styleObj.accentColor, -4.6, 0.1, -1.8), 'urban_campus_park', '科创园中央下沉绿谷', '智慧科创产业园', 1.4, 0.15, 2.2);
       designGroup.add(campusPark);
 
       // Heritage Lane Low-rise Courtyard (04)
       for (let r = 0; r < 2; r++) {
         for (let c = 0; c < 3; c++) {
-          const hBlk = createBox(1.0, 0.65, 1.0, styleObj.woodColor, -5.6 + c * 1.15, 0.35, 4.0 + r * 1.25);
+          const hBlk = registerFurniture(createBox(1.0, 0.65, 1.0, styleObj.woodColor, -5.6 + c * 1.15, 0.35, 4.0 + r * 1.25), `urban_heritage_${r}_${c}`, `历史风貌里弄院落 #${r * 3 + c + 1}`, '历史风貌保护街区', 1.0, 0.65, 1.0);
           designGroup.add(hBlk);
         }
       }
 
       // Metro Transit Hub (05)
       createWallSegment(4.6, -1.8, 3.4, 3.0, 1.45, styleObj.wallColor, true);
-      const hubCanopy = createBox(3.8, 0.2, 3.4, styleObj.accentColor, 4.6, 1.55, -1.8);
+      const hubCanopy = registerFurniture(createBox(3.8, 0.2, 3.4, styleObj.accentColor, 4.6, 1.55, -1.8), 'urban_hub_canopy', '轨道交通枢纽生态屋盖', '城市轨道交通枢纽', 3.8, 0.2, 3.4);
       designGroup.add(hubCanopy);
 
       // Civic Waterfront Opera (06)
-      const operaShell = createBox(3.1, 1.25, 2.3, styleObj.wallColor, 0.2, 0.65, 4.8);
-      const operaPlaza = createBox(3.5, 0.15, 2.7, styleObj.fabricColor, 0.2, 0.1, 4.8);
+      const operaShell = registerFurniture(createBox(3.1, 1.25, 2.3, styleObj.wallColor, 0.2, 0.65, 4.8), 'urban_opera_shell', '滨水市民大剧院主厅', '滨水市民大剧院', 3.1, 1.25, 2.3);
+      const operaPlaza = registerFurniture(createBox(3.5, 0.15, 2.7, styleObj.fabricColor, 0.2, 0.1, 4.8), 'urban_opera_plaza', '大剧院亲水平台广场', '滨水市民大剧院', 3.5, 0.15, 2.7);
       designGroup.add(operaShell, operaPlaza);
 
       // Talent Living Quarter Towers (07) & Smart Grid Center (08)
@@ -2231,7 +1384,7 @@
       createWallSegment(0, -1.2, 2.8, 2.4, 2.3, styleObj.woodColor, true);
 
       // Double-eave pitched roofs (in Roof Group & Design Group)
-      const lowerEave = createBox(3.9, 0.24, 3.5, styleObj.metalColor, 0, 1.55, -1.2);
+      const lowerEave = registerFurniture(createBox(3.9, 0.24, 3.5, styleObj.metalColor, 0, 1.55, -1.2), 'tour_lower_eave', '主阁二层飞檐腰檐', '飞檐阁楼数字展厅', 3.9, 0.24, 3.5);
       const upperEave = createBox(3.1, 0.32, 2.8, styleObj.metalColor, 0, 2.65, -1.2);
       const finial = createBox(0.35, 0.55, 0.35, 0xf59e0b, 0, 3.0, -1.2);
       designGroup.add(lowerEave);
@@ -2240,7 +1393,7 @@
       // 03 Ancient City Gate Barbican
       createWallSegment(-1.6, 5.2, 1.7, 2.0, 1.75, 0x9ca3af, true);
       createWallSegment(1.6, 5.2, 1.7, 2.0, 1.75, 0x9ca3af, true);
-      const gateWatchtower = createBox(3.6, 0.85, 1.6, styleObj.woodColor, 0, 2.05, 5.2);
+      const gateWatchtower = registerFurniture(createBox(3.6, 0.85, 1.6, styleObj.woodColor, 0, 2.05, 5.2), 'tour_gate_tower', '瓮城城楼敌台木构', '古城南门瓮城遗址', 3.6, 0.85, 1.6);
       designGroup.add(gateWatchtower);
 
       // 04 Intangible Craft Courtyard (Siheyuan)
@@ -2249,17 +1402,17 @@
       createWallSegment(-3.2, -1.2, 0.7, 3.2, 1.25, styleObj.wallColor, false);
 
       // 05 Water-Curtain Night Stage
-      const stageDeck = createBox(3.4, 0.22, 3.0, styleObj.woodColor, 4.6, 0.15, -1.2);
-      const waterScreen = createBox(2.8, 1.65, 0.12, 0x38bdf8, 4.6, 1.0, -1.2, { isGlass: true, opacity: 0.55 });
+      const stageDeck = registerFurniture(createBox(3.4, 0.22, 3.0, styleObj.woodColor, 4.6, 0.15, -1.2), 'tour_stage_deck', '水上剧场360度演艺台', '夜间光影水舞剧场', 3.4, 0.22, 3.0);
+      const waterScreen = registerFurniture(createBox(2.8, 1.65, 0.12, 0x38bdf8, 4.6, 1.0, -1.2, { isGlass: true, opacity: 0.55 }), 'tour_water_screen', '全息激光水幕投影屏', '夜间光影水舞剧场', 2.8, 1.65, 0.12);
       designGroup.add(stageDeck, waterScreen);
 
       // 06 Twin Arch Stone Bridge
-      const bridgeArch = createBox(1.8, 0.65, 2.6, 0xd6d3cd, -2.2, 0.35, 2.2);
+      const bridgeArch = registerFurniture(createBox(1.8, 0.65, 2.6, 0xd6d3cd, -2.2, 0.35, 2.2), 'tour_bridge_arch', '双虹卧波单孔青石拱桥', '双虹卧波古石桥', 1.8, 0.65, 2.6);
       designGroup.add(bridgeArch);
 
       // 07 Riverside Tea Street & 08 Cloud Cliff Walkway
       createWallSegment(-4.6, 4.8, 3.6, 1.8, 1.45, styleObj.woodColor, false);
-      const cliffTower = createBox(3.2, 1.9, 2.0, styleObj.woodColor, 4.6, 1.0, 4.8);
+      const cliffTower = registerFurniture(createBox(3.2, 1.9, 2.0, styleObj.woodColor, 4.6, 1.0, 4.8), 'tour_cliff_tower', '云端悬空栈道观景阁', '云端观景悬空栈道', 3.2, 1.9, 2.0);
       designGroup.add(cliffTower);
 
       // Festive Lanterns / Floating Boats when toggleOpenDoors is active
@@ -2648,7 +1801,6 @@
         planOverlay.classList.remove('flex');
         rightControls.classList.remove('hidden');
       }
-      syncStateControls();
     }
 
     function selectSpace(spaceId, moveCamera = true) {
@@ -2889,16 +2041,12 @@
         showToast('请选择 .glb 或 .gltf 格式的三维模型文件');
         return;
       }
-      if (file.size > MAX_MODEL_IMPORT_BYTES) {
-        showToast('模型导入失败：文件不能超过 100 MB');
-        return;
-      }
       if (typeof THREE.GLTFLoader === 'undefined') {
         showToast('GLTFLoader 正在加载中，请稍候重试');
         return;
       }
 
-      showToast(`正在解析并导入三维模型: ${file.name} ...${ext.endsWith('.gltf') ? '（仅支持内嵌资源）' : ''}`);
+      showToast(`正在解析并导入三维模型: ${file.name} ...`);
       const reader = new FileReader();
       reader.onload = function(evt) {
         const arrayBuffer = evt.target.result;
@@ -3132,12 +2280,11 @@
       state.hasCustomModel = false;
       state.customModelName = '';
       clearGroup(customModelGroup);
-      const restoreBtn = document.getElementById('btnRestoreDefaultModel');
-      restoreBtn.classList.add('hidden');
-      restoreBtn.classList.remove('flex');
+      Object.keys(furnitureTransformStore).forEach(k => delete furnitureTransformStore[k]);
+      selectFurnitureItem(null);
       buildSceneForCurrentDomain();
       updateAllUI();
-      showToast('已恢复默认空间体块模型');
+      showToast('✓ 已恢复当前领域默认三维体块与初始构件位置');
     });
 
     const viewportWrapper = document.getElementById('viewportWrapper');
@@ -3243,12 +2390,13 @@
       setTimeout(() => t.classList.add('hidden'), 2400);
     }
     document.getElementById('btnSaveLayout').addEventListener('click', () => {
-      clearTimeout(autosaveTimer);
-      autosaveTimer = null;
-      savePersistedState(true);
+      try {
+        localStorage.setItem('base_spatial_lab_state', JSON.stringify(state));
+      } catch (err) {}
+      showToast('✓ 已保存当前 3D 空间布局与风格参数至本机');
     });
     document.getElementById('btnExportJson').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(createPersistencePayload(), null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -3257,51 +2405,6 @@
       URL.revokeObjectURL(url);
       showToast('✓ 已导出 JSON 布局备份文件');
     });
-    const importInput = document.getElementById('inputImportJson');
-    document.getElementById('btnImportJson').addEventListener('click', () => importInput.click());
-    importInput.addEventListener('change', async () => {
-      const file = importInput.files && importInput.files[0];
-      importInput.value = '';
-      if (!file) return;
-      if (file.size > MAX_IMPORT_BYTES) {
-        showToast('导入失败：备份文件不能超过 1 MB');
-        return;
-      }
-
-      const previousPayload = normalizePersistencePayload(createPersistencePayload());
-      try {
-        const importedPayload = normalizePersistencePayload(JSON.parse(await file.text()));
-        applyPersistencePayload(importedPayload);
-        clearTimeout(autosaveTimer);
-        autosaveTimer = null;
-        if (!savePersistedState(false)) throw new Error('无法写入本机存储');
-        showToast('✓ 已导入布局备份并恢复当前视图');
-      } catch (error) {
-        console.warn('导入布局失败', error);
-        try { applyPersistencePayload(previousPayload); } catch (rollbackError) {
-          console.error('恢复导入前状态失败', rollbackError);
-        }
-        showToast(`导入失败：${error.message || '文件格式无效'}`);
-      }
-    });
-
-    const autosaveControlSelector = [
-      '.domain-tab', '.view-tab', '.render-tab', '#cameraPresetSelect', '#btnResetSelection',
-      '#toggleStructureLayer', '#toggleDesignLayer', '#toggleSpaceNames', '#toggleFlowLines',
-      '#toggleRoofTop', '#toggleOpenDoors', '#sliderWallCut', '#toggleCadGrid',
-      '#sliderCadOpacity', '#sliderSunTime', '#sliderSunAzimuth', '#sliderSunElevation', '#sliderAmbient', '#btnResetCamera',
-      '#spaceListContainer button', '#styleGridContainer button', '#cardConnectedLinks button',
-      '#moodboardBody button', '#btnWalkForward', '#btnWalkBack', '#btnWalkLeft', '#btnWalkRight'
-    ].join(',');
-    ['input', 'change', 'click'].forEach(eventName => {
-      document.addEventListener(eventName, event => {
-        if (event.target.closest && event.target.closest(autosaveControlSelector)) scheduleAutosave();
-      });
-    });
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') flushAutosave();
-    });
-    window.addEventListener('pagehide', flushAutosave);
 
     // Moodboard Modal (Matches Screenshot 3 reference boards!)
     function renderMoodboardModal() {
@@ -3517,13 +2620,6 @@
           selectSpace(hits[0].object.userData.spaceId, false);
         }
       }
-      scheduleAutosave();
-    });
-
-    window.addEventListener('pointercancel', (e) => {
-      if (e.pointerType === 'touch') activeTouchPointers.delete(e.pointerId);
-      camCtrl.isDragging = false;
-      scheduleAutosave();
     });
 
     container.addEventListener('contextmenu', e => e.preventDefault());
@@ -3536,7 +2632,6 @@
       } else {
         camCtrl.targetSpherical.radius = Math.max(6, Math.min(55, camCtrl.targetSpherical.radius + e.deltaY * 0.015));
       }
-      scheduleAutosave();
     }, { passive: false });
 
     // Keyboard WASD / Arrow Keys
@@ -3555,7 +2650,6 @@
       if (k === 'a' || e.key === 'ArrowLeft') camCtrl.keys.a = false;
       if (k === 'd' || e.key === 'ArrowRight') camCtrl.keys.d = false;
       if (e.key === 'Shift') camCtrl.keys.shift = false;
-      if (['w', 'a', 's', 'd'].includes(k) || e.key.startsWith('Arrow')) scheduleAutosave();
     });
 
     // On-screen D-Pad Buttons for Walkthrough / Pan
@@ -3591,10 +2685,14 @@
     window.addEventListener('resize', handleResize);
 
     function isPositionCollidingWithWall(nx, nz) {
+      // If doors are open, allow passing near doorway pivot coordinates
       if (state.openDoors) {
-        // Allow passing through doorway openings while preventing outer/solid wall clipping
-        if (nx < -7.2 || nx > 5.5 || nz < -5.8 || nz > 5.7) return true;
-        return false;
+        for (let d = 0; d < animatedDoors.length; d++) {
+          const dp = animatedDoors[d].pivot.position;
+          if (Math.hypot(nx - dp.x, nz - dp.z) < 0.95) {
+            return false;
+          }
+        }
       }
       for (let i = 0; i < wallColliders.length; i++) {
         const wc = wallColliders[i];
@@ -3679,10 +2777,8 @@
 
     window.onload = () => {
       handleResize();
-      if (!loadPersistedState()) {
-        buildSceneForCurrentDomain();
-        updateAllUI();
-      }
+      buildSceneForCurrentDomain();
+      updateAllUI();
       animate();
     };
   </script>
