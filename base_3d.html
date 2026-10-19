@@ -4,20 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BASE / 空间设计实验室 — 多领域3D空间交互平台 (室内·建筑·城市规划·数字文旅)</title>
-  <link rel="icon" type="image/jpeg" href="assets/nalen-favicon-rev02.jpg">
-
-  <!-- 本地化依赖：Three.js r128 走本地，不再依赖 cdnjs -->
-  <script src="vendor/three/three.min.js"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* 本地 Inter 可变字体（latin 子集，48 KB），替代 Google Fonts */
-    @font-face {
-      font-family: 'Inter';
-      font-style: normal;
-      font-weight: 400 700;
-      font-display: swap;
-      src: url('vendor/fonts/inter-latin.woff2') format('woff2');
-    }
-
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
     body, html {
       margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
@@ -330,7 +323,7 @@
       box-shadow: inset 0 1px rgba(255,255,255,0.06), 0 3px 14px rgba(22,141,255,0.12) !important;
     }
 
-    #btnToggleSidebar, #btnSaveLayout, #btnExportJson {
+    #btnToggleSidebar, #btnSaveLayout, #btnExportJson, #btnImportJson {
       color: var(--nalen-ink) !important;
       background: rgba(255,255,255,0.045) !important;
       border-color: var(--nalen-line) !important;
@@ -343,7 +336,7 @@
     }
 
     #btnOpenMoodboard:hover, #btnOpenPromptModal:hover,
-    #btnToggleSidebar:hover, #btnSaveLayout:hover, #btnExportJson:hover {
+    #btnToggleSidebar:hover, #btnSaveLayout:hover, #btnExportJson:hover, #btnImportJson:hover {
       background: rgba(22,141,255,0.2) !important;
       border-color: rgba(88,208,255,0.55) !important;
     }
@@ -676,23 +669,21 @@
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden bg-[#f3f3f1]">
 
-  <!-- 移动端抽屉遮罩 -->
-  <div id="sidebarScrim" aria-hidden="true"></div>
-
   <!-- TOP HEADER BAR -->
   <header class="h-12 bg-white border-b border-gray-200 px-3 flex items-center justify-between shrink-0 z-30">
     <!-- Left: Brand + Domain Selector -->
     <div class="flex items-center gap-3 min-w-0">
-      <button id="btnToggleSidebar" class="items-center justify-center w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-700 shrink-0" aria-label="打开空间目录" title="空间目录 / 图层 / 风格">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
       <div class="flex items-center gap-2">
-        <img class="nalen-rev02-header-logo shrink-0" src="assets/nalen-logo-rev02.png" alt="NALEN Spatial and Technology Systems" width="66" height="38" decoding="async">
+        <div class="w-7 h-7 rounded-lg bg-[#1c1f24] text-white flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
         <div class="leading-tight hidden sm:block">
-          <div class="text-xs font-bold tracking-tight text-gray-900">NALEN / BASE · 空间设计实验室</div>
-          <div class="text-[9px] tracking-widest text-gray-400 uppercase">AI · SPATIAL DESIGN · TECHNOLOGY SYSTEMS</div>
+          <div class="text-xs font-bold tracking-tight text-gray-900">BASE / 空间设计实验室</div>
+          <div class="text-[9px] tracking-widest text-gray-400 uppercase">INTERACTIVE SPATIAL DESIGN LAB</div>
         </div>
       </div>
 
@@ -739,8 +730,16 @@
       </button>
     </div>
 
-    <!-- Right: Style Board, AI Prompt Guide & Backup Actions -->
+    <!-- Right: Import 3D Model, Style Board, AI Prompt Guide & Backup Actions -->
     <div class="flex items-center gap-1.5">
+      <input type="file" id="inputGlbModel" accept=".glb,.gltf" class="hidden" />
+      <button id="btnImportModel" class="px-2.5 py-1 rounded-md text-xs font-semibold border border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 transition flex items-center gap-1 shadow-2xs" title="支持选择或直接拖拽本地 .glb / .gltf 三维模型文件">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>导入 3D 模型</span>
+      </button>
+      <button id="btnRestoreDefaultModel" class="px-2 py-1 rounded-md text-xs font-medium border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 transition hidden items-center gap-1" title="清空导入模型并恢复内置空间体块">
+        <span>恢复默认体块</span>
+      </button>
       <button id="btnOpenMoodboard" class="px-2.5 py-1 rounded-md text-xs font-medium border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition flex items-center gap-1">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         <span class="hidden md:inline">风格图板</span>
@@ -755,6 +754,10 @@
       <button id="btnExportJson" class="px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 text-[11px] text-gray-700 hidden xl:inline-block">
         下载布局备份
       </button>
+      <button id="btnImportJson" class="px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 text-[11px] text-gray-700 hidden xl:inline-block">
+        导入布局备份
+      </button>
+      <input id="inputImportJson" type="file" accept="application/json,.json" class="hidden" aria-label="导入布局备份 JSON">
     </div>
   </header>
 
@@ -763,10 +766,6 @@
 
     <!-- LEFT SIDEBAR: SPATIAL DIRECTORY + MODEL LAYERS + DESIGN STYLE -->
     <aside class="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0 z-20 select-none">
-      <div class="nalen-brand-card" aria-label="NALEN 空间设计与技术系统">
-        <img src="assets/nalen-brand-banner.png" alt="NALEN AI · Spatial Design · Technology Systems" loading="eager" decoding="async">
-        <div class="nalen-brand-caption"><span class="nalen-live-dot" aria-hidden="true"></span><span>BASE 3D / INTERACTIVE LAB</span><span class="nalen-brand-version">REV 02</span></div>
-      </div>
       <!-- Section 1: Spatial Directory -->
       <div class="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-1.5">
@@ -871,13 +870,13 @@
           <div class="absolute top-4 right-4 glass-panel rounded-xl p-3 w-52 shadow-sm z-20">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-gray-700">原始图纸轴网</span>
-              <input aria-label="显示原始图纸轴网" type="checkbox" id="toggleCadGrid" checked class="rounded text-emerald-700 focus:ring-0">
+              <input type="checkbox" id="toggleCadGrid" checked class="rounded text-emerald-700 focus:ring-0">
             </div>
             <div class="flex items-center justify-between text-[11px] text-gray-500 mb-1">
               <span>蓝图标注叠加</span>
               <span id="cadOpacityVal">85%</span>
             </div>
-            <input aria-label="图纸叠加透明度" type="range" id="sliderCadOpacity" min="0" max="100" value="85" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <input type="range" id="sliderCadOpacity" min="0" max="100" value="85" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
           </div>
         </div>
 
@@ -889,33 +888,32 @@
         </div>
 
         <!-- TOP-RIGHT FLOATING VIEWER CONTROLS (Matches Screenshot 1, 3, 4) -->
-        <button type="button" id="mobileLayersToggle" aria-label="展开图层与视图控制" aria-controls="rightViewerControls" aria-expanded="false" class="glass-panel rounded-xl px-3 py-2 shadow-md">☰ 图层</button>
         <div id="rightViewerControls" class="absolute top-4 right-4 glass-panel rounded-xl p-3.5 w-52 shadow-sm space-y-2.5 z-20">
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-700 font-medium">空间名称</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input aria-label="显示空间名称" type="checkbox" id="toggleSpaceNames" class="sr-only peer" checked>
+              <input type="checkbox" id="toggleSpaceNames" class="sr-only peer" checked>
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-700 font-medium">交通流线</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input aria-label="显示交通流线" type="checkbox" id="toggleFlowLines" class="sr-only peer" checked>
+              <input type="checkbox" id="toggleFlowLines" class="sr-only peer" checked>
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
           <div class="flex items-center justify-between">
             <span id="labelToggleRoof" class="text-xs text-gray-700 font-medium">显示顶面</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input aria-label="显示顶面" type="checkbox" id="toggleRoofTop" class="sr-only peer">
+              <input type="checkbox" id="toggleRoofTop" class="sr-only peer">
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
           <div class="flex items-center justify-between">
             <span id="labelToggleDoors" class="text-xs text-gray-700 font-medium">开启平开门</span>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input aria-label="开启平开门" type="checkbox" id="toggleOpenDoors" class="sr-only peer" checked>
+              <input type="checkbox" id="toggleOpenDoors" class="sr-only peer" checked>
               <div class="w-8 h-4 bg-gray-300 rounded-full peer peer-checked:bg-[#2b7a68] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
           </div>
@@ -925,7 +923,7 @@
               <span id="labelWallCut" class="text-gray-600 font-medium">墙体剖切</span>
               <span id="wallCutValueText" class="font-mono text-[11px] text-emerald-800 font-semibold">2.60 m</span>
             </div>
-            <input aria-label="墙体剖切高度" type="range" id="sliderWallCut" min="0.3" max="3.2" step="0.05" value="2.60" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            <input type="range" id="sliderWallCut" min="0.3" max="3.2" step="0.05" value="2.60" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
           </div>
         </div>
 
@@ -943,11 +941,33 @@
           <p id="cardSpaceDesc" class="text-xs text-gray-600 leading-relaxed mb-3">
             六人餐桌与西厨岛台形成洄游动线，内侧连接厨房与玄关过渡区，兼顾日常用餐与社交聚会。
           </p>
-          <div id="cardConnectedBlock" class="space-y-1.5">
+          <div class="space-y-1.5">
             <div class="text-[10px] text-gray-400 font-medium">流线相邻空间（点击跳转）：</div>
             <div id="cardConnectedLinks" class="flex flex-wrap gap-1">
               <!-- Populated dynamically -->
             </div>
+          </div>
+        </div>
+
+        <!-- FIRST-PERSON WALKTHROUGH CROSSHAIR & POINTER LOCK BANNER (Video 02:27) -->
+        <div id="walkCrosshair" class="absolute inset-0 pointer-events-none z-15 hidden items-center justify-center">
+          <div class="w-5 h-5 relative flex items-center justify-center">
+            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow"></div>
+            <div class="absolute w-4 h-[1px] bg-white/80"></div>
+            <div class="absolute h-4 w-[1px] bg-white/80"></div>
+          </div>
+        </div>
+        <div id="walkTopBanner" class="absolute top-4 left-1/2 -translate-x-1/2 z-20 hidden items-center gap-2 glass-panel px-3.5 py-1.5 rounded-full shadow-sm text-xs text-gray-800">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="walkLockStatusText">第一人称漫游 (固定视高 1.60m · 剖切已关闭) — 点击画面锁定鼠标自由环视，按 ESC 退出锁定</span>
+          <button id="btnLockPointerNow" type="button" class="ml-1 px-2 py-0.5 rounded-full bg-[#1f6f5c] text-white text-[10px] font-semibold hover:bg-[#165344]">锁定鼠标视角</button>
+        </div>
+
+        <!-- DRAG & DROP GLB/GLTF OVERLAY -->
+        <div id="glbDropOverlay" class="absolute inset-3 rounded-2xl border-2 border-dashed border-indigo-500 bg-indigo-950/40 backdrop-blur-xs z-40 hidden items-center justify-center pointer-events-none">
+          <div class="bg-white rounded-xl px-6 py-4 shadow-xl text-center">
+            <div class="text-sm font-bold text-indigo-950">释放鼠标以导入 .glb / .gltf 三维模型</div>
+            <div class="text-xs text-gray-500 mt-1">系统将自动清空默认体块并居中自适应缩放展示</div>
           </div>
         </div>
 
@@ -967,19 +987,88 @@
         </div>
 
         <!-- BOTTOM-RIGHT LIGHTING & CAMERA RESET (Matches Screenshot) -->
-        <div id="bottomRightControls" class="absolute bottom-4 right-4 flex flex-col items-end gap-2 z-20">
-          <!-- Lighting Popover Panel -->
-          <div id="lightingPopover" class="glass-panel rounded-xl p-3 w-56 shadow-md hidden space-y-2.5">
-            <div class="flex items-center justify-between text-xs font-semibold text-gray-700">
-              <span>太阳高度与日照时刻</span>
-              <span id="sunTimeLabel" class="font-mono text-amber-700">14:30</span>
+        <div class="absolute bottom-4 right-4 flex flex-col items-end gap-2 z-20">
+          <!-- Furniture Selection & Fine-tuning Popup (Matches Video 01:50) -->
+          <div id="furnitureInspectorCard" class="glass-panel rounded-xl p-3.5 w-64 shadow-lg hidden space-y-2.5 border-emerald-300/90">
+            <div class="flex items-center justify-between border-b border-gray-200/80 pb-1.5">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                <span class="text-[10px] font-bold tracking-wider text-emerald-800 uppercase">构件点选与微调</span>
+              </div>
+              <button id="btnCloseFurnitureCard" class="text-gray-400 hover:text-gray-700 text-xs px-1" title="取消选中">✕</button>
             </div>
-            <input aria-label="太阳时间" type="range" id="sliderSunTime" min="6" max="22" step="0.5" value="14.5" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
-            <div class="flex items-center justify-between text-xs text-gray-600">
-              <span>环境光强度</span>
-              <span id="ambientValLabel" class="font-mono">100%</span>
+            <div>
+              <div class="flex items-center justify-between">
+                <h4 id="furnInspectorName" class="text-xs font-bold text-gray-900 truncate">焦糖胡桃木转角沙发</h4>
+                <span id="furnInspectorSpace" class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">客厅</span>
+              </div>
+              <div id="furnInspectorDims" class="text-[11px] font-mono text-emerald-800 bg-emerald-50/90 border border-emerald-200 rounded px-2 py-1 mt-1">
+                尺寸: 2.60 × 0.95 × 0.42 m
+              </div>
+              <div id="furnInspectorPose" class="text-[10px] font-mono text-gray-500 mt-1">
+                坐标: X 1.50m, Z 4.65m | 旋转: 0°
+              </div>
             </div>
-            <input aria-label="环境光强度" type="range" id="sliderAmbient" min="30" max="150" step="5" value="100" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+
+            <!-- Translation X/Z & Rotation Controls -->
+            <div class="space-y-1.5 pt-1 border-t border-gray-100 text-[11px]">
+              <div class="flex items-center justify-between text-gray-600">
+                <span>水平平移微调 (或直接拖动3D红蓝轴)</span>
+              </div>
+              <div class="grid grid-cols-4 gap-1">
+                <button id="btnFurnMoveXNeg" type="button" class="px-1.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-mono text-[10px]">X -0.15</button>
+                <button id="btnFurnMoveXPos" type="button" class="px-1.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-mono text-[10px]">X +0.15</button>
+                <button id="btnFurnMoveZNeg" type="button" class="px-1.5 py-1 rounded bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-mono text-[10px]">Z -0.15</button>
+                <button id="btnFurnMoveZPos" type="button" class="px-1.5 py-1 rounded bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-mono text-[10px]">Z +0.15</button>
+              </div>
+
+              <div class="flex items-center justify-between text-gray-600 pt-1">
+                <span>旋转角度</span>
+                <span id="furnRotValueLabel" class="font-mono text-emerald-800 font-semibold">0°</span>
+              </div>
+              <input type="range" id="sliderFurnRotate" min="-180" max="180" step="5" value="0" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+              <div class="grid grid-cols-3 gap-1 pt-0.5">
+                <button id="btnFurnRotLeft" type="button" class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-medium">↺ -15°</button>
+                <button id="btnFurnRotRight" type="button" class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-medium">↻ +15°</button>
+                <button id="btnFurnResetPose" type="button" class="px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-medium">复位构件</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lighting Popover Panel (Enhanced with Sun Azimuth 0-360° & Elevation 0-90° per Video 02:38) -->
+          <div id="lightingPopover" class="glass-panel rounded-xl p-3.5 w-64 shadow-md hidden space-y-2.5">
+            <div class="flex items-center justify-between border-b border-gray-200/80 pb-1">
+              <span class="text-xs font-bold text-gray-800">☀ 太阳轨迹与实时阴影调节</span>
+              <span class="text-[10px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">阴影联动</span>
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-xs text-gray-700 mb-0.5">
+                <span>太阳方位角 (Azimuth)</span>
+                <span id="sunAzimuthLabel" class="font-mono text-[11px] text-amber-700 font-semibold">135° (东南)</span>
+              </div>
+              <input type="range" id="sliderSunAzimuth" min="0" max="360" step="1" value="135" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-xs text-gray-700 mb-0.5">
+                <span>太阳高度角 (Elevation)</span>
+                <span id="sunElevationLabel" class="font-mono text-[11px] text-amber-700 font-semibold">52°</span>
+              </div>
+              <input type="range" id="sliderSunElevation" min="0" max="90" step="1" value="52" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            </div>
+            <div class="pt-1 border-t border-gray-200/70">
+              <div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
+                <span>日照时刻快捷联动</span>
+                <span id="sunTimeLabel" class="font-mono text-amber-700">14:30</span>
+              </div>
+              <input type="range" id="sliderSunTime" min="6" max="22" step="0.5" value="14.5" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-xs text-gray-600 mb-0.5">
+                <span>环境光强度</span>
+                <span id="ambientValLabel" class="font-mono">100%</span>
+              </div>
+              <input type="range" id="sliderAmbient" min="30" max="150" step="5" value="100" class="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer">
+            </div>
           </div>
 
           <div class="flex items-center gap-1.5">
@@ -1350,10 +1439,15 @@
       showRoof: false,
       openDoors: true,
       wallCutHeight: 2.55,
+      savedWallCutBeforeWalk: 2.55,
       sunTime: 14.5,
+      sunAzimuth: 135,            // 0° - 360°
+      sunElevation: 52,           // 0° - 90°
       ambientPercent: 100,
       cadGrid: true,
-      cadOpacity: 85
+      cadOpacity: 85,
+      hasCustomModel: false,
+      customModelName: ''
     };
 
     /********************************************************************
@@ -1365,10 +1459,9 @@
     scene.background = new THREE.Color(0xe9e9e6);
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
-    const mobileGpu = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
-    const renderer = new THREE.WebGLRenderer({ antialias: !mobileGpu, powerPreference: mobileGpu ? 'low-power' : 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobileGpu ? 1.25 : 2));
-    renderer.shadowMap.enabled = !mobileGpu;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
@@ -1382,9 +1475,9 @@
 
     const dirLight = new THREE.DirectionalLight(0xfffbf0, 0.85);
     dirLight.position.set(14, 24, 16);
-    dirLight.castShadow = !mobileGpu;
-    dirLight.shadow.mapSize.width = mobileGpu ? 1024 : 2048;
-    dirLight.shadow.mapSize.height = mobileGpu ? 1024 : 2048;
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.near = 1;
     dirLight.shadow.camera.far = 80;
     const d = 16;
@@ -1404,13 +1497,23 @@
     const roofGroup = new THREE.Group();
     const flowGroup = new THREE.Group();
     const highlightGroup = new THREE.Group();
-    worldGroup.add(structureGroup, designGroup, roofGroup, flowGroup, highlightGroup);
+    const furnitureHighlightGroup = new THREE.Group();
+    const customModelGroup = new THREE.Group();
+    worldGroup.add(structureGroup, designGroup, roofGroup, flowGroup, highlightGroup, furnitureHighlightGroup, customModelGroup);
 
     // Collections for dynamic updates
     let cuttableWalls = [];
+    let wallColliders = [];
     let animatedDoors = [];
     let interactivePickMeshes = [];
+    let interactiveFurnitureMeshes = [];
+    let selectedFurnitureMesh = null;
+    let gizmoHandles = [];
+    let activeGizmoAxis = null; // 'x' | 'z' | 'rot'
     let spaceLabelElements = [];
+    const furnitureTransformStore = {}; // Persist user tweaks across style switches
+
+    const WALK_EYE_HEIGHT = 1.60; // Fixed 1.6m eye height per video 02:27
 
     // Camera Orbit / Walkthrough Controller State
     const camCtrl = {
@@ -1418,9 +1521,11 @@
       spherical: { radius: 19.5, phi: 0.88, theta: 0.65 },
       targetSpherical: { radius: 19.5, phi: 0.88, theta: 0.65 },
       targetLookAt: new THREE.Vector3(0, 0.5, 0),
-      walkPos: new THREE.Vector3(1.2, 1.55, 1.8),
+      walkPos: new THREE.Vector3(1.2, WALK_EYE_HEIGHT, 1.8),
+      walkVel: new THREE.Vector3(0, 0, 0),
       walkYaw: 0.3,
-      walkPitch: -0.05,
+      walkPitch: 0.0,
+      isPointerLocked: false,
       isDragging: false,
       dragButton: 0,
       lastX: 0,
@@ -1428,41 +1533,252 @@
       keys: { w: false, a: false, s: false, d: false, shift: false }
     };
 
-    /********************************************************************
-     * 4. PROCEDURAL SCENE BUILDER FOR ALL 4 DOMAINS
-     ********************************************************************/
-    /**
-     * 递归释放材质与贴图。
-     * makeMaterial() 每次切换领域 / 风格 / 渲染模式都会新建材质，
-     * 旧代码只 dispose 了 geometry，材质留在显存里，反复切换会持续涨显存直到掉帧。
-     */
-    function disposeMaterial(mat) {
-      if (!mat) return;
-      Object.keys(mat).forEach((key) => {
-        const value = mat[key];
-        if (value && value.isTexture && typeof value.dispose === 'function') {
-          value.dispose();
-        }
-      });
-      if (typeof mat.dispose === 'function') mat.dispose();
+    const STORAGE_KEY = 'base_spatial_lab_state';
+    const STORAGE_VERSION = '1.0.0';
+    const AUTOSAVE_DELAY_MS = 650;
+    const MAX_IMPORT_BYTES = 1024 * 1024;
+    const MAX_MODEL_IMPORT_BYTES = 100 * 1024 * 1024;
+    const PERSISTED_STATE_KEYS = [
+      'domain', 'viewMode', 'renderMode', 'styleId', 'selectedSpaceId',
+      'showStructureLayer', 'showDesignLayer', 'showSpaceNames', 'showFlowLines',
+      'showRoof', 'openDoors', 'wallCutHeight', 'sunTime', 'sunAzimuth', 'sunElevation', 'ambientPercent',
+      'cadGrid', 'cadOpacity'
+    ];
+    let autosaveTimer = null;
+    let isRestoringState = false;
+
+    function vectorToArray(vector) {
+      return [vector.x, vector.y, vector.z];
     }
 
-    function disposeObject(obj) {
-      if (!obj) return;
-      // 先递归子树（addEdgesIfNeeded 会把轮廓线挂成 mesh 的子节点）
-      obj.children.slice().forEach(disposeObject);
-      if (obj.geometry && typeof obj.geometry.dispose === 'function') obj.geometry.dispose();
-      if (obj.material) {
-        if (Array.isArray(obj.material)) obj.material.forEach(disposeMaterial);
-        else disposeMaterial(obj.material);
+    function createPersistencePayload() {
+      const persistedState = {};
+      PERSISTED_STATE_KEYS.forEach(key => { persistedState[key] = state[key]; });
+      return {
+        storageVersion: STORAGE_VERSION,
+        savedAt: new Date().toISOString(),
+        state: persistedState,
+        camera: {
+          fov: camera.fov,
+          target: vectorToArray(camCtrl.target),
+          targetLookAt: vectorToArray(camCtrl.targetLookAt),
+          spherical: { ...camCtrl.spherical },
+          targetSpherical: { ...camCtrl.targetSpherical },
+          walkPos: vectorToArray(camCtrl.walkPos),
+          walkYaw: camCtrl.walkYaw,
+          walkPitch: camCtrl.walkPitch
+        }
+      };
+    }
+
+    function requireObject(value, label) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error(`${label} 必须是对象`);
+      }
+      return value;
+    }
+
+    function readEnum(source, key, allowed, fallback) {
+      if (!(key in source)) return fallback;
+      if (!allowed.includes(source[key])) throw new Error(`${key} 的值无效`);
+      return source[key];
+    }
+
+    function readBoolean(source, key, fallback) {
+      if (!(key in source)) return fallback;
+      if (typeof source[key] !== 'boolean') throw new Error(`${key} 必须是布尔值`);
+      return source[key];
+    }
+
+    function readNumber(source, key, min, max, fallback) {
+      if (!(key in source)) return fallback;
+      const value = source[key];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+        throw new Error(`${key} 超出允许范围`);
+      }
+      return value;
+    }
+
+    function readVector(source, key, fallback) {
+      if (!(key in source)) return [...fallback];
+      const value = source[key];
+      if (!Array.isArray(value) || value.length !== 3 || value.some(n => typeof n !== 'number' || !Number.isFinite(n) || Math.abs(n) > 10000)) {
+        throw new Error(`${key} 必须是三个有效坐标值`);
+      }
+      return [...value];
+    }
+
+    function readSpherical(source, key, fallback) {
+      if (!(key in source)) return { ...fallback };
+      const value = requireObject(source[key], key);
+      return {
+        radius: readNumber(value, 'radius', 1, 200, fallback.radius),
+        phi: readNumber(value, 'phi', 0.001, Math.PI - 0.001, fallback.phi),
+        theta: readNumber(value, 'theta', -10000, 10000, fallback.theta)
+      };
+    }
+
+    function normalizePersistencePayload(raw) {
+      const root = requireObject(raw, '备份内容');
+      const isVersioned = Object.prototype.hasOwnProperty.call(root, 'storageVersion');
+      if (isVersioned && root.storageVersion !== STORAGE_VERSION) {
+        throw new Error(`不支持的数据版本：${String(root.storageVersion)}`);
+      }
+      if (!isVersioned && Object.prototype.hasOwnProperty.call(root, 'state')) {
+        throw new Error('版本化备份缺少 storageVersion');
+      }
+
+      const sourceState = requireObject(isVersioned ? root.state : root, 'state');
+      if (!PERSISTED_STATE_KEYS.some(key => Object.prototype.hasOwnProperty.call(sourceState, key))) {
+        throw new Error('备份中没有可恢复的布局状态');
+      }
+
+      const domain = readEnum(sourceState, 'domain', Object.keys(DOMAIN_CONFIGS), state.domain);
+      const domainConfig = DOMAIN_CONFIGS[domain];
+      const normalizedState = {
+        domain,
+        viewMode: readEnum(sourceState, 'viewMode', ['perspective', 'axon', 'top', 'plan', 'walk'], state.viewMode),
+        renderMode: readEnum(sourceState, 'renderMode', ['arctic', 'shaded', 'material'], state.renderMode),
+        styleId: readEnum(sourceState, 'styleId', domainConfig.styles.map(item => item.id), domainConfig.styles[0].id),
+        selectedSpaceId: readEnum(sourceState, 'selectedSpaceId', domainConfig.spaces.map(item => item.id), domainConfig.spaces[0].id),
+        showStructureLayer: readBoolean(sourceState, 'showStructureLayer', state.showStructureLayer),
+        showDesignLayer: readBoolean(sourceState, 'showDesignLayer', state.showDesignLayer),
+        showSpaceNames: readBoolean(sourceState, 'showSpaceNames', state.showSpaceNames),
+        showFlowLines: readBoolean(sourceState, 'showFlowLines', state.showFlowLines),
+        showRoof: readBoolean(sourceState, 'showRoof', state.showRoof),
+        openDoors: readBoolean(sourceState, 'openDoors', state.openDoors),
+        wallCutHeight: readNumber(sourceState, 'wallCutHeight', domainConfig.cutMin, domainConfig.cutMax, domainConfig.cutDefault),
+        sunTime: readNumber(sourceState, 'sunTime', 6, 22, state.sunTime),
+        sunAzimuth: readNumber(sourceState, 'sunAzimuth', 0, 360, state.sunAzimuth),
+        sunElevation: readNumber(sourceState, 'sunElevation', 0, 90, state.sunElevation),
+        ambientPercent: readNumber(sourceState, 'ambientPercent', 30, 150, state.ambientPercent),
+        cadGrid: readBoolean(sourceState, 'cadGrid', state.cadGrid),
+        cadOpacity: readNumber(sourceState, 'cadOpacity', 0, 100, state.cadOpacity)
+      };
+
+      let normalizedCamera = null;
+      if (isVersioned && root.camera != null) {
+        const sourceCamera = requireObject(root.camera, 'camera');
+        normalizedCamera = {
+          fov: readNumber(sourceCamera, 'fov', 10, 100, camera.fov),
+          target: readVector(sourceCamera, 'target', vectorToArray(camCtrl.target)),
+          targetLookAt: readVector(sourceCamera, 'targetLookAt', vectorToArray(camCtrl.targetLookAt)),
+          spherical: readSpherical(sourceCamera, 'spherical', camCtrl.spherical),
+          targetSpherical: readSpherical(sourceCamera, 'targetSpherical', camCtrl.targetSpherical),
+          walkPos: readVector(sourceCamera, 'walkPos', vectorToArray(camCtrl.walkPos)),
+          walkYaw: readNumber(sourceCamera, 'walkYaw', -10000, 10000, camCtrl.walkYaw),
+          walkPitch: readNumber(sourceCamera, 'walkPitch', -0.65, 0.65, camCtrl.walkPitch)
+        };
+      }
+      return { storageVersion: STORAGE_VERSION, state: normalizedState, camera: normalizedCamera };
+    }
+
+    function syncStateControls() {
+      const domainConfig = DOMAIN_CONFIGS[state.domain];
+      const wallSlider = document.getElementById('sliderWallCut');
+      wallSlider.min = domainConfig.cutMin;
+      wallSlider.max = domainConfig.cutMax;
+      wallSlider.value = state.wallCutHeight;
+      document.getElementById('wallCutValueText').textContent = `${state.wallCutHeight.toFixed(2)} m`;
+      document.getElementById('toggleStructureLayer').checked = state.showStructureLayer;
+      document.getElementById('toggleDesignLayer').checked = state.showDesignLayer;
+      document.getElementById('toggleSpaceNames').checked = state.showSpaceNames;
+      document.getElementById('toggleFlowLines').checked = state.showFlowLines;
+      document.getElementById('toggleRoofTop').checked = state.showRoof;
+      document.getElementById('toggleOpenDoors').checked = state.openDoors;
+      document.getElementById('toggleCadGrid').checked = state.cadGrid;
+      document.getElementById('sliderCadOpacity').value = state.cadOpacity;
+      document.getElementById('cadOpacityVal').textContent = `${state.cadOpacity}%`;
+      document.getElementById('sliderSunTime').value = state.sunTime;
+      document.getElementById('sliderSunAzimuth').value = state.sunAzimuth;
+      document.getElementById('sliderSunElevation').value = state.sunElevation;
+      const hours = Math.floor(state.sunTime);
+      const minutes = String(Math.round((state.sunTime - hours) * 60)).padStart(2, '0');
+      document.getElementById('sunTimeLabel').textContent = `${String(hours).padStart(2, '0')}:${minutes}`;
+      document.getElementById('sliderAmbient').value = state.ambientPercent;
+      document.getElementById('ambientValLabel').textContent = `${state.ambientPercent}%`;
+    }
+
+    function applyPersistencePayload(payload) {
+      isRestoringState = true;
+      try {
+        Object.assign(state, payload.state);
+        if (payload.camera) {
+          camera.fov = payload.camera.fov;
+          camera.updateProjectionMatrix();
+          camCtrl.target.fromArray(payload.camera.target);
+          camCtrl.targetLookAt.fromArray(payload.camera.targetLookAt);
+          Object.assign(camCtrl.spherical, payload.camera.spherical);
+          Object.assign(camCtrl.targetSpherical, payload.camera.targetSpherical);
+          camCtrl.walkPos.fromArray(payload.camera.walkPos);
+          camCtrl.walkYaw = payload.camera.walkYaw;
+          camCtrl.walkPitch = payload.camera.walkPitch;
+        } else {
+          camera.fov = ({ perspective: 45, axon: 20, top: 26, plan: 26, walk: 62 })[state.viewMode];
+          camera.updateProjectionMatrix();
+        }
+        syncStateControls();
+        buildSceneForCurrentDomain();
+        updateAllUI();
+      } finally {
+        isRestoringState = false;
       }
     }
 
+    function savePersistedState(showConfirmation = false) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(createPersistencePayload()));
+        if (showConfirmation) showToast('✓ 已保存当前布局、视图与相机参数至本机');
+        return true;
+      } catch (error) {
+        console.error('保存布局失败', error);
+        if (showConfirmation) showToast('保存失败：浏览器未允许写入本机存储');
+        return false;
+      }
+    }
+
+    function scheduleAutosave() {
+      if (isRestoringState) return;
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(() => {
+        autosaveTimer = null;
+        savePersistedState(false);
+      }, AUTOSAVE_DELAY_MS);
+    }
+
+    function flushAutosave() {
+      if (autosaveTimer == null) return;
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+      savePersistedState(false);
+    }
+
+    function loadPersistedState() {
+      try {
+        const serialized = localStorage.getItem(STORAGE_KEY);
+        if (!serialized) return false;
+        applyPersistencePayload(normalizePersistencePayload(JSON.parse(serialized)));
+        return true;
+      } catch (error) {
+        console.warn('已忽略无效的本机布局数据', error);
+        return false;
+      }
+    }
+
+    /********************************************************************
+     * 4. PROCEDURAL SCENE BUILDER FOR ALL 4 DOMAINS
+     ********************************************************************/
     function clearGroup(group) {
       while (group.children.length > 0) {
         const child = group.children[0];
         group.remove(child);
-        disposeObject(child);
+        child.traverse(node => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach(material => material.dispose());
+          }
+        });
       }
     }
 
@@ -1551,6 +1867,33 @@
 
       structureGroup.add(mesh);
       cuttableWalls.push({ mesh, maxH });
+      wallColliders.push({
+        minX: x - w / 2 - 0.24,
+        maxX: x + w / 2 + 0.24,
+        minZ: z - d / 2 - 0.24,
+        maxZ: z + d / 2 + 0.24
+      });
+      return mesh;
+    }
+
+    function registerFurniture(mesh, idKey, name, spaceName, w, h, d) {
+      const saved = furnitureTransformStore[idKey];
+      const initPos = mesh.position.clone();
+      const initRotY = mesh.rotation.y;
+      if (saved) {
+        mesh.position.set(saved.x, saved.y, saved.z);
+        mesh.rotation.y = saved.rotY;
+      }
+      mesh.userData = {
+        isFurniture: true,
+        furnId: idKey,
+        furnName: name,
+        spaceName: spaceName,
+        dims: { w, h, d },
+        initPos: initPos,
+        initRotY: initRotY
+      };
+      interactiveFurnitureMeshes.push(mesh);
       return mesh;
     }
 
@@ -1566,14 +1909,32 @@
     }
 
     function buildSceneForCurrentDomain() {
+      if (state.hasCustomModel) {
+        // When a custom GLB/GLTF model is loaded, keep default blocks cleared
+        clearGroup(structureGroup);
+        clearGroup(designGroup);
+        clearGroup(roofGroup);
+        clearGroup(flowGroup);
+        clearGroup(highlightGroup);
+        labelsOverlay.innerHTML = '';
+        spaceLabelElements = [];
+        updateLighting();
+        return;
+      }
+      const prevFurnId = selectedFurnitureMesh && selectedFurnitureMesh.userData ? selectedFurnitureMesh.userData.furnId : null;
       clearGroup(structureGroup);
       clearGroup(designGroup);
       clearGroup(roofGroup);
       clearGroup(flowGroup);
       clearGroup(highlightGroup);
+      clearGroup(furnitureHighlightGroup);
       cuttableWalls = [];
+      wallColliders = [];
       animatedDoors = [];
       interactivePickMeshes = [];
+      interactiveFurnitureMeshes = [];
+      selectedFurnitureMesh = null;
+      gizmoHandles = [];
 
       const domCfg = DOMAIN_CONFIGS[state.domain];
       const styleObj = getActiveStyleObj();
@@ -1647,6 +2008,12 @@
       // Rebuild HTML 3D labels
       buildSpaceLabels(domCfg);
 
+      // Restore furniture selection highlight if active
+      if (prevFurnId) {
+        const found = interactiveFurnitureMeshes.find(m => m.userData.furnId === prevFurnId);
+        if (found) selectFurnitureItem(found);
+      }
+
       // Apply layer visibility
       updateLayerVisibility();
       updateLighting();
@@ -1688,70 +2055,71 @@
       createSwingingDoor(-2.2, -2.3, 0.85, 2.1, 0, styleObj);
       createSwingingDoor(-4.3, -3.5, 0.78, 2.1, Math.PI / 2, styleObj);
 
-      // Furniture in Design Layer
+      // Furniture in Design Layer (All registered for Raycast Picking & Gizmo Fine-Tuning per Video 01:50)
       // 01 Living Room: L-Sofa + Coffee Table + Rug + TV Console + Accent Chair
-      const rugLiv = createBox(3.2, 0.03, 2.4, styleObj.fabricColor, 1.5, 0.06, 3.8);
-      const sofaBase = createBox(2.6, 0.42, 0.95, styleObj.fabricColor, 1.5, 0.26, 4.65);
-      const sofaBack = createBox(2.6, 0.45, 0.22, styleObj.woodColor, 1.5, 0.62, 5.02);
-      const sofaChaise = createBox(0.9, 0.42, 1.65, styleObj.fabricColor, 0.65, 0.26, 4.3);
-      const coffeeTable = createBox(1.2, 0.35, 0.7, styleObj.woodColor, 1.6, 0.22, 3.55);
-      const accentChair = createBox(0.75, 0.68, 0.75, styleObj.accentColor, 3.0, 0.38, 3.5);
-      const tvStand = createBox(2.4, 0.45, 0.45, styleObj.woodColor, 1.5, 0.27, 2.05);
+      const rugLiv = registerFurniture(createBox(3.2, 0.03, 2.4, styleObj.fabricColor, 1.5, 0.06, 3.8), 'furn_rug_liv', '客厅手工编织地毯', '客厅', 3.20, 0.03, 2.40);
+      const sofaBase = registerFurniture(createBox(2.6, 0.42, 0.95, styleObj.fabricColor, 1.5, 0.26, 4.65), 'furn_sofa_base', '主沙发模块坐垫组', '客厅', 2.60, 0.42, 0.95);
+      const sofaBack = registerFurniture(createBox(2.6, 0.45, 0.22, styleObj.woodColor, 1.5, 0.62, 5.02), 'furn_sofa_back', '胡桃木沙发靠背框架', '客厅', 2.60, 0.45, 0.22);
+      const sofaChaise = registerFurniture(createBox(0.9, 0.42, 1.65, styleObj.fabricColor, 0.65, 0.26, 4.3), 'furn_sofa_chaise', '转角贵妃榻模块', '客厅', 0.90, 0.42, 1.65);
+      const coffeeTable = registerFurniture(createBox(1.2, 0.35, 0.7, styleObj.woodColor, 1.6, 0.22, 3.55), 'furn_coffee_table', '中古实木茶几', '客厅', 1.20, 0.35, 0.70);
+      const accentChair = registerFurniture(createBox(0.75, 0.68, 0.75, styleObj.accentColor, 3.0, 0.38, 3.5), 'furn_accent_chair', '设计师单人休闲椅', '客厅', 0.75, 0.68, 0.75);
+      const tvStand = registerFurniture(createBox(2.4, 0.45, 0.45, styleObj.woodColor, 1.5, 0.27, 2.05), 'furn_tv_stand', '落地实木电视矮柜', '客厅', 2.40, 0.45, 0.45);
       designGroup.add(rugLiv, sofaBase, sofaBack, sofaChaise, coffeeTable, accentChair, tvStand);
 
       // 02 Multi-purpose Study: Long Desk + Bookshelf + Lounge Mat
-      const studyDesk = createBox(2.2, 0.74, 0.75, styleObj.woodColor, -3.2, 0.4, 3.6);
-      const studyChair = createBox(0.55, 0.8, 0.55, styleObj.accentColor, -3.2, 0.42, 4.25);
-      const bookshelf = createBox(3.0, 2.1, 0.38, styleObj.woodColor, -3.2, 1.1, 5.65);
+      const studyDesk = registerFurniture(createBox(2.2, 0.74, 0.75, styleObj.woodColor, -3.2, 0.4, 3.6), 'furn_study_desk', '开放式阅读长书桌', '多功能区', 2.20, 0.74, 0.75);
+      const studyChair = registerFurniture(createBox(0.55, 0.8, 0.55, styleObj.accentColor, -3.2, 0.42, 4.25), 'furn_study_chair', '人体工学阅读椅', '多功能区', 0.55, 0.80, 0.55);
+      const bookshelf = registerFurniture(createBox(3.0, 2.1, 0.38, styleObj.woodColor, -3.2, 1.1, 5.65), 'furn_bookshelf', '定制满墙展示书柜', '多功能区', 3.00, 2.10, 0.38);
       designGroup.add(studyDesk, studyChair, bookshelf);
 
       // 03 Dining Room: 6-seater Dining Table + Chairs + Sideboard
-      const diningTable = createBox(1.9, 0.76, 0.95, styleObj.woodColor, 1.2, 0.42, -0.4);
+      const diningTable = registerFurniture(createBox(1.9, 0.76, 0.95, styleObj.woodColor, 1.2, 0.42, -0.4), 'furn_dining_table', '六人位原木餐桌', '餐厅', 1.90, 0.76, 0.95);
       designGroup.add(diningTable);
-      [-0.6, 0, 0.6].forEach(dx => {
-        designGroup.add(createBox(0.46, 0.78, 0.46, styleObj.fabricColor, 1.2 + dx, 0.41, -1.1));
-        designGroup.add(createBox(0.46, 0.78, 0.46, styleObj.fabricColor, 1.2 + dx, 0.41, 0.3));
+      [-0.6, 0, 0.6].forEach((dx, idx) => {
+        const chN = registerFurniture(createBox(0.46, 0.78, 0.46, styleObj.fabricColor, 1.2 + dx, 0.41, -1.1), `furn_dchair_n${idx}`, `北侧餐椅 #${idx + 1}`, '餐厅', 0.46, 0.78, 0.46);
+        const chS = registerFurniture(createBox(0.46, 0.78, 0.46, styleObj.fabricColor, 1.2 + dx, 0.41, 0.3), `furn_dchair_s${idx}`, `南侧餐椅 #${idx + 1}`, '餐厅', 0.46, 0.78, 0.46);
+        designGroup.add(chN, chS);
       });
 
       // 04 Foyer bench & cabinet
-      const foyerCab = createBox(0.5, 2.1, 2.2, styleObj.woodColor, 5.3, 1.1, -0.4);
-      const foyerBench = createBox(1.1, 0.45, 0.45, styleObj.accentColor, 4.3, 0.26, -1.4);
+      const foyerCab = registerFurniture(createBox(0.5, 2.1, 2.2, styleObj.woodColor, 5.3, 1.1, -0.4), 'furn_foyer_cab', '入户通顶玄关收纳柜', '玄关', 0.50, 2.10, 2.20);
+      const foyerBench = registerFurniture(createBox(1.1, 0.45, 0.45, styleObj.accentColor, 4.3, 0.26, -1.4), 'furn_foyer_bench', '悬浮换鞋长凳', '玄关', 1.10, 0.45, 0.45);
       designGroup.add(foyerCab, foyerBench);
 
       // 05 Kitchen counters
-      const kitCounter1 = createBox(2.1, 0.88, 0.65, styleObj.fabricColor, -2.0, 0.48, -1.65);
-      const kitCounter2 = createBox(0.65, 0.88, 2.4, styleObj.woodColor, -2.7, 0.48, -0.3);
+      const kitCounter1 = registerFurniture(createBox(2.1, 0.88, 0.65, styleObj.fabricColor, -2.0, 0.48, -1.65), 'furn_kit_1', '厨房主操作台面', '厨房', 2.10, 0.88, 0.65);
+      const kitCounter2 = registerFurniture(createBox(0.65, 0.88, 2.4, styleObj.woodColor, -2.7, 0.48, -0.3), 'furn_kit_2', '嵌入式电器高柜台面', '厨房', 0.65, 0.88, 2.40);
       designGroup.add(kitCounter1, kitCounter2);
 
       // 06 Guest Bedroom: Bed + Headboard + Nightstands
-      const guestHead = createBox(2.0, 1.15, 0.18, styleObj.woodColor, -6.2, 0.62, -1.7);
-      const guestMattress = createBox(1.8, 0.48, 2.0, 0xfafaf9, -6.2, 0.28, -0.65);
-      const guestBlanket = createBox(1.82, 0.50, 0.85, styleObj.accentColor, -6.2, 0.29, -0.15);
+      const guestHead = registerFurniture(createBox(2.0, 1.15, 0.18, styleObj.woodColor, -6.2, 0.62, -1.7), 'furn_guest_head', '次卧木质床头靠背', '次卧（一）', 2.00, 1.15, 0.18);
+      const guestMattress = registerFurniture(createBox(1.8, 0.48, 2.0, 0xfafaf9, -6.2, 0.28, -0.65), 'furn_guest_bed', '次卧 1.8m 双人床', '次卧（一）', 1.80, 0.48, 2.00);
+      const guestBlanket = registerFurniture(createBox(1.82, 0.50, 0.85, styleObj.accentColor, -6.2, 0.29, -0.15), 'furn_guest_blanket', '次卧针织床尾搭毯', '次卧（一）', 1.82, 0.50, 0.85);
       designGroup.add(guestHead, guestMattress, guestBlanket);
 
       // 09 Master Suite (Matches Screenshot 2 with bed, headboard, olive throw blanket, wall art!)
-      const masterHead = createBox(2.6, 1.25, 0.22, styleObj.woodColor, -2.2, 0.66, -5.65);
-      const masterMattress = createBox(2.1, 0.52, 2.2, 0xf5f2eb, -2.2, 0.3, -4.45);
-      const masterThrow = createBox(2.14, 0.54, 0.75, styleObj.accentColor, -2.2, 0.31, -3.75);
-      const pillowL = createBox(0.75, 0.22, 0.42, 0xfafaf9, -2.7, 0.64, -5.2);
-      const pillowR = createBox(0.75, 0.22, 0.42, 0xfafaf9, -1.7, 0.64, -5.2);
-      const artFrame = createBox(1.4, 0.95, 0.05, styleObj.accentColor, -2.2, 1.85, -5.72);
+      const masterHead = registerFurniture(createBox(2.6, 1.25, 0.22, styleObj.woodColor, -2.2, 0.66, -5.65), 'furn_master_head', '主卧加宽软包木饰面床头', '主卧室', 2.60, 1.25, 0.22);
+      const masterMattress = registerFurniture(createBox(2.1, 0.52, 2.2, 0xf5f2eb, -2.2, 0.3, -4.45), 'furn_master_bed', '主卧 2.1m 特大双人床', '主卧室', 2.10, 0.52, 2.20);
+      const masterThrow = registerFurniture(createBox(2.14, 0.54, 0.75, styleObj.accentColor, -2.2, 0.31, -3.75), 'furn_master_throw', '主卧橄榄绿羊绒搭毯', '主卧室', 2.14, 0.54, 0.75);
+      const pillowL = registerFurniture(createBox(0.75, 0.22, 0.42, 0xfafaf9, -2.7, 0.64, -5.2), 'furn_pillow_l', '主卧羽绒靠枕 (左)', '主卧室', 0.75, 0.22, 0.42);
+      const pillowR = registerFurniture(createBox(0.75, 0.22, 0.42, 0xfafaf9, -1.7, 0.64, -5.2), 'furn_pillow_r', '主卧羽绒靠枕 (右)', '主卧室', 0.75, 0.22, 0.42);
+      const artFrame = registerFurniture(createBox(1.4, 0.95, 0.05, styleObj.accentColor, -2.2, 1.85, -5.72), 'furn_master_art', '主卧几何构成装饰挂画', '主卧室', 1.40, 0.95, 0.05);
       designGroup.add(masterHead, masterMattress, masterThrow, pillowL, pillowR, artFrame);
 
       // 10 Walk-in Closet Wardrobes
-      const closetL = createBox(0.55, 2.2, 3.2, styleObj.woodColor, -6.7, 1.15, 3.6);
-      const closetR = createBox(0.55, 2.2, 3.2, styleObj.woodColor, -5.3, 1.15, 3.6);
+      const closetL = registerFurniture(createBox(0.55, 2.2, 3.2, styleObj.woodColor, -6.7, 1.15, 3.6), 'furn_closet_l', '衣帽间西侧玻璃衣柜', '衣帽间', 0.55, 2.20, 3.20);
+      const closetR = registerFurniture(createBox(0.55, 2.2, 3.2, styleObj.woodColor, -5.3, 1.15, 3.6), 'furn_closet_r', '衣帽间东侧玻璃衣柜', '衣帽间', 0.55, 2.20, 3.20);
       designGroup.add(closetL, closetR);
 
       // 11 Master Bathroom Bathtub & Vanity
-      const bathtub = createBox(1.6, 0.58, 0.8, 0xffffff, -6.2, 0.32, -5.2);
-      const vanity = createBox(1.5, 0.82, 0.55, styleObj.woodColor, -5.4, 0.45, -2.9);
+      const bathtub = registerFurniture(createBox(1.6, 0.58, 0.8, 0xffffff, -6.2, 0.32, -5.2), 'furn_bathtub', '主卫独立亚克力浴缸', '主卫', 1.60, 0.58, 0.80);
+      const vanity = registerFurniture(createBox(1.5, 0.82, 0.55, styleObj.woodColor, -5.4, 0.45, -2.9), 'furn_vanity', '主卫双台盆悬空浴室柜', '主卫', 1.50, 0.82, 0.55);
       designGroup.add(bathtub, vanity);
 
       // 12 Fitness Terrace Equipment & Planters
-      const treadmillBase = createBox(0.85, 0.18, 1.75, styleObj.metalColor, 1.6, 0.14, -4.4);
-      const treadmillConsole = createBox(0.85, 1.15, 0.2, styleObj.metalColor, 1.6, 0.65, -5.15);
-      const benchPress = createBox(1.2, 0.45, 1.4, styleObj.accentColor, 3.4, 0.26, -4.3);
+      const treadmillBase = registerFurniture(createBox(0.85, 0.18, 1.75, styleObj.metalColor, 1.6, 0.14, -4.4), 'furn_treadmill', '专业级有氧跑步机', '健身露台', 0.85, 1.15, 1.75);
+      const treadmillConsole = registerFurniture(createBox(0.85, 1.15, 0.2, styleObj.metalColor, 1.6, 0.65, -5.15), 'furn_treadmill_head', '跑步机智能中控屏', '健身露台', 0.85, 1.15, 0.20);
+      const benchPress = registerFurniture(createBox(1.2, 0.45, 1.4, styleObj.accentColor, 3.4, 0.26, -4.3), 'furn_bench_press', '多功能力量训练卧推床', '健身露台', 1.20, 0.45, 1.40);
       designGroup.add(treadmillBase, treadmillConsole, benchPress);
 
       // Roof / Ceiling Slab
@@ -1950,7 +2318,6 @@
             ? 'active-label bg-[#1f6f5c] text-white border-[#134e40]'
             : 'bg-white/90 text-gray-800 border-gray-300 hover:border-emerald-600'
         }`;
-        el.setAttribute('aria-label', `选择空间 ${sp.id} ${sp.name}`);
         el.innerHTML = `<span class="opacity-65 font-mono text-[10px]">${sp.id}</span><span>${sp.name}</span>`;
         el.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -1968,27 +2335,19 @@
     function updateSpaceLabelsProjection() {
       if (!state.showSpaceNames || state.viewMode === 'plan') {
         labelsOverlay.style.display = 'none';
-        spaceLabelElements.forEach(item => { item.el.tabIndex = -1; });
         return;
       }
       labelsOverlay.style.display = 'block';
       const width = container.clientWidth;
       const height = container.clientHeight;
 
-      let mobileLabelCount = 0;
-      const compactLabels = window.matchMedia('(max-width: 767px)').matches;
       spaceLabelElements.forEach(item => {
-        const visibleOnMobile = !compactLabels || item.spaceId === state.selectedSpaceId || mobileLabelCount < 3;
-        if (!visibleOnMobile) { item.el.style.display = 'none'; item.el.tabIndex = -1; return; }
         const v = item.pos.clone();
         v.project(camera);
         if (v.z > 1) {
           item.el.style.display = 'none';
-          item.el.tabIndex = -1;
           return;
         }
-        item.el.tabIndex = 0;
-        if (compactLabels && item.spaceId !== state.selectedSpaceId) mobileLabelCount++;
         const x = (v.x * 0.5 + 0.5) * width;
         const y = (-(v.y * 0.5) + 0.5) * height;
         item.el.style.display = 'flex';
@@ -2289,6 +2648,7 @@
         planOverlay.classList.remove('flex');
         rightControls.classList.remove('hidden');
       }
+      syncStateControls();
     }
 
     function selectSpace(spaceId, moveCamera = true) {
@@ -2312,9 +2672,26 @@
     }
 
     function applyCameraPresetForViewMode(mode) {
+      const prevMode = state.viewMode;
       state.viewMode = mode;
       const domCfg = DOMAIN_CONFIGS[state.domain];
       const sp = domCfg.spaces.find(s => s.id === state.selectedSpaceId) || domCfg.spaces[0];
+
+      // Exit pointer lock if leaving walkthrough mode
+      if (mode !== 'walk' && document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch (e) {}
+      }
+
+      // Restore wall cut slider if leaving walk mode
+      if (prevMode === 'walk' && mode !== 'walk') {
+        state.wallCutHeight = state.savedWallCutBeforeWalk || domCfg.cutDefault;
+        const slider = document.getElementById('sliderWallCut');
+        slider.disabled = false;
+        slider.value = state.wallCutHeight;
+        cuttableWalls.forEach(item => {
+          item.mesh.scale.y = Math.max(0.15, Math.min(item.maxH, state.wallCutHeight));
+        });
+      }
 
       if (mode === 'perspective') {
         camera.fov = 45;
@@ -2324,7 +2701,6 @@
         camCtrl.targetSpherical.theta = 0.65;
         camCtrl.targetLookAt.set(0, 0.5, 0);
       } else if (mode === 'axon') {
-        // Telephoto low-FOV orthographic feel
         camera.fov = 20;
         camera.updateProjectionMatrix();
         camCtrl.targetSpherical.radius = 42.0;
@@ -2339,18 +2715,41 @@
         camCtrl.targetSpherical.theta = 0;
         camCtrl.targetLookAt.set(0, 0, 0);
       } else if (mode === 'walk') {
-        camera.fov = 62;
+        // Video 02:27: Fixed 1.60m eye height, disable wall section cut to avoid wall clipping, smooth WASD + pointer lock
+        camera.fov = 65;
         camera.updateProjectionMatrix();
-        state.wallCutHeight = domCfg.cutMax;
-        document.getElementById('sliderWallCut').value = state.wallCutHeight;
-        if (sp) {
-          camCtrl.walkPos.set(sp.x, 1.52, sp.z + 0.9);
-        } else {
-          camCtrl.walkPos.set(0, 1.52, 2.5);
+        if (prevMode !== 'walk') {
+          state.savedWallCutBeforeWalk = state.wallCutHeight;
         }
-        camCtrl.walkPitch = -0.04;
+        state.wallCutHeight = domCfg.cutMax;
+        const slider = document.getElementById('sliderWallCut');
+        slider.value = state.wallCutHeight;
+        slider.disabled = true; // Auto-disable section cut in walkthrough mode
+        if (sp && !state.hasCustomModel) {
+          camCtrl.walkPos.set(sp.x, WALK_EYE_HEIGHT, sp.z + 0.6);
+        } else {
+          camCtrl.walkPos.set(0, WALK_EYE_HEIGHT, 2.5);
+        }
+        camCtrl.walkVel.set(0, 0, 0);
+        camCtrl.walkPitch = 0.0;
         buildSceneForCurrentDomain();
+        showToast('已进入第一人称漫游（固定视高 1.60m · 剖切已自动关闭）');
       }
+
+      const walkCrosshair = document.getElementById('walkCrosshair');
+      const walkBanner = document.getElementById('walkTopBanner');
+      if (mode === 'walk') {
+        walkCrosshair.classList.remove('hidden');
+        walkCrosshair.classList.add('flex');
+        walkBanner.classList.remove('hidden');
+        walkBanner.classList.add('flex');
+      } else {
+        walkCrosshair.classList.add('hidden');
+        walkCrosshair.classList.remove('flex');
+        walkBanner.classList.add('hidden');
+        walkBanner.classList.remove('flex');
+      }
+
       updateAllUI();
     }
 
@@ -2361,18 +2760,254 @@
       flowGroup.visible = state.showFlowLines;
     }
 
-    function updateLighting() {
-      const hour = state.sunTime;
-      const angle = ((hour - 6) / 16) * Math.PI; // 6:00 -> 0, 14:00 -> PI/2, 22:00 -> PI
-      const sx = Math.cos(angle) * 20;
-      const sy = Math.max(3.5, Math.sin(angle) * 24);
-      const sz = 12 + Math.sin(angle * 0.7) * 6;
-      dirLight.position.set(sx, sy, sz);
+    function getCompassDirectionText(az) {
+      const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+      const idx = Math.round(((az % 360) / 45)) % 8;
+      return dirs[idx];
+    }
 
-      const isNight = hour < 7.5 || hour > 19.5;
-      dirLight.intensity = isNight ? 0.32 : 0.9;
-      dirLight.color.setHex(isNight ? 0x93c5fd : (hour < 9.5 || hour > 17.5 ? 0xfdba74 : 0xfffbf0));
-      ambientLight.intensity = (state.ambientPercent / 100) * (isNight ? 0.45 : 0.72);
+    function updateLighting() {
+      // Video 02:38: Real-time Sun Azimuth (0-360°) & Elevation (0-90°) linked to DirectionalLight & Shadows
+      const azRad = (state.sunAzimuth * Math.PI) / 180;
+      const elRad = (Math.max(2, state.sunElevation) * Math.PI) / 180;
+      const dist = 28;
+
+      const sx = dist * Math.cos(elRad) * Math.sin(azRad);
+      const sy = Math.max(1.2, dist * Math.sin(elRad));
+      const sz = dist * Math.cos(elRad) * Math.cos(azRad);
+
+      dirLight.position.set(sx, sy, sz);
+      dirLight.target.position.set(0, 0, 0);
+      dirLight.target.updateMatrixWorld();
+
+      const isLowSun = state.sunElevation < 18;
+      const isNight = state.sunElevation <= 3;
+      dirLight.intensity = isNight ? 0.22 : (isLowSun ? 0.78 : 0.96);
+      dirLight.color.setHex(isNight ? 0x93c5fd : (isLowSun ? 0xfdba74 : 0xfffbf0));
+      ambientLight.intensity = (state.ambientPercent / 100) * (isNight ? 0.42 : 0.72);
+
+      // Update UI labels
+      const azEl = document.getElementById('sunAzimuthLabel');
+      const elEl = document.getElementById('sunElevationLabel');
+      if (azEl) azEl.textContent = `${Math.round(state.sunAzimuth)}° (${getCompassDirectionText(state.sunAzimuth)})`;
+      if (elEl) elEl.textContent = `${Math.round(state.sunElevation)}°`;
+    }
+
+    /********************************************************************
+     * 6B. FURNITURE RAYCAST SELECTION, GIZMO AXES & TRANSFORM (Video 01:50)
+     ********************************************************************/
+    function selectFurnitureItem(mesh) {
+      clearGroup(furnitureHighlightGroup);
+      gizmoHandles = [];
+      selectedFurnitureMesh = mesh;
+
+      const card = document.getElementById('furnitureInspectorCard');
+      if (!mesh || !mesh.userData || !mesh.userData.isFurniture) {
+        card.classList.add('hidden');
+        return;
+      }
+
+      const ud = mesh.userData;
+      const { w, h, d } = ud.dims;
+
+      // 1. Bright Wireframe Highlight Box around selected furniture
+      const boxGeom = new THREE.BoxGeometry(w + 0.08, h + 0.08, d + 0.08);
+      const edges = new THREE.EdgesGeometry(boxGeom);
+      const wireMat = new THREE.LineBasicMaterial({ color: 0x10b981 });
+      const wireBox = new THREE.LineSegments(edges, wireMat);
+      wireBox.position.copy(mesh.position);
+      wireBox.rotation.y = mesh.rotation.y;
+      furnitureHighlightGroup.add(wireBox);
+
+      // 2. Interactive 3D Translation Gizmo Axes (X Red Arrow, Z Blue Arrow)
+      const gizmoY = mesh.position.y + h / 2 + 0.25;
+      const xShaft = new THREE.Mesh(
+        new THREE.BoxGeometry(1.1, 0.08, 0.08),
+        new THREE.MeshBasicMaterial({ color: 0xef4444 })
+      );
+      xShaft.position.set(mesh.position.x + 0.6, gizmoY, mesh.position.z);
+      xShaft.userData = { gizmoAxis: 'x' };
+
+      const zShaft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.08, 1.1),
+        new THREE.MeshBasicMaterial({ color: 0x3b82f6 })
+      );
+      zShaft.position.set(mesh.position.x, gizmoY, mesh.position.z + 0.6);
+      zShaft.userData = { gizmoAxis: 'z' };
+
+      const centerKnob = new THREE.Mesh(
+        new THREE.SphereGeometry(0.11, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xf59e0b })
+      );
+      centerKnob.position.set(mesh.position.x, gizmoY, mesh.position.z);
+      centerKnob.userData = { gizmoAxis: 'rot' };
+
+      furnitureHighlightGroup.add(xShaft, zShaft, centerKnob);
+      gizmoHandles.push(xShaft, zShaft, centerKnob);
+
+      // 3. Populate Right-Side Furniture Inspector Card
+      document.getElementById('furnInspectorName').textContent = ud.furnName;
+      document.getElementById('furnInspectorSpace').textContent = ud.spaceName || '导入构件';
+      document.getElementById('furnInspectorDims').textContent = `尺寸: ${w.toFixed(2)} × ${d.toFixed(2)} × ${h.toFixed(2)} m`;
+      const deg = Math.round((mesh.rotation.y * 180) / Math.PI);
+      document.getElementById('furnInspectorPose').textContent =
+        `坐标: X ${mesh.position.x.toFixed(2)}m, Z ${mesh.position.z.toFixed(2)}m | 旋转: ${deg}°`;
+      document.getElementById('furnRotValueLabel').textContent = `${deg}°`;
+      document.getElementById('sliderFurnRotate').value = Math.max(-180, Math.min(180, deg));
+      card.classList.remove('hidden');
+    }
+
+    function applySelectedFurnitureTransform(dx, dy, dz, dRotDeg, absoluteRotDeg = null) {
+      if (!selectedFurnitureMesh) return;
+      selectedFurnitureMesh.position.x += dx;
+      selectedFurnitureMesh.position.y += dy;
+      selectedFurnitureMesh.position.z += dz;
+      if (absoluteRotDeg !== null) {
+        selectedFurnitureMesh.rotation.y = (absoluteRotDeg * Math.PI) / 180;
+      } else if (dRotDeg !== 0) {
+        selectedFurnitureMesh.rotation.y += (dRotDeg * Math.PI) / 180;
+      }
+      const ud = selectedFurnitureMesh.userData;
+      if (ud && ud.furnId) {
+        furnitureTransformStore[ud.furnId] = {
+          x: selectedFurnitureMesh.position.x,
+          y: selectedFurnitureMesh.position.y,
+          z: selectedFurnitureMesh.position.z,
+          rotY: selectedFurnitureMesh.rotation.y
+        };
+      }
+      selectFurnitureItem(selectedFurnitureMesh);
+    }
+
+    /********************************************************************
+     * 6C. REAL GLB / GLTF 3D MODEL UPLOAD & AUTO-FIT (Video 00:45)
+     ********************************************************************/
+    function handleGlbFileImport(file) {
+      if (!file) return;
+      const ext = file.name.toLowerCase();
+      if (!ext.endsWith('.glb') && !ext.endsWith('.gltf')) {
+        showToast('请选择 .glb 或 .gltf 格式的三维模型文件');
+        return;
+      }
+      if (file.size > MAX_MODEL_IMPORT_BYTES) {
+        showToast('模型导入失败：文件不能超过 100 MB');
+        return;
+      }
+      if (typeof THREE.GLTFLoader === 'undefined') {
+        showToast('GLTFLoader 正在加载中，请稍候重试');
+        return;
+      }
+
+      showToast(`正在解析并导入三维模型: ${file.name} ...${ext.endsWith('.gltf') ? '（仅支持内嵌资源）' : ''}`);
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const arrayBuffer = evt.target.result;
+        const loader = new THREE.GLTFLoader();
+        loader.parse(
+          arrayBuffer,
+          '',
+          function(gltf) {
+            // 1. Clear all default blocks & groups
+            state.hasCustomModel = true;
+            state.customModelName = file.name;
+            clearGroup(structureGroup);
+            clearGroup(designGroup);
+            clearGroup(roofGroup);
+            clearGroup(flowGroup);
+            clearGroup(highlightGroup);
+            clearGroup(furnitureHighlightGroup);
+            clearGroup(customModelGroup);
+            cuttableWalls = [];
+            wallColliders = [];
+            interactivePickMeshes = [];
+            interactiveFurnitureMeshes = [];
+            selectedFurnitureMesh = null;
+            labelsOverlay.innerHTML = '';
+            spaceLabelElements = [];
+
+            const modelRoot = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+            if (!modelRoot) {
+              showToast('模型文件中未找到有效三维网格');
+              return;
+            }
+
+            // 2. Compute bounding box, auto-scale to ~12m, and center at origin (bottom at y=0)
+            const box = new THREE.Box3().setFromObject(modelRoot);
+            const size = new THREE.Vector3();
+            const center = new THREE.Vector3();
+            box.getSize(size);
+            box.getCenter(center);
+
+            const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+            const targetSpan = 12.0;
+            const scaleFactor = targetSpan / maxDim;
+
+            modelRoot.scale.setScalar(scaleFactor);
+            // Recompute scaled bounds to center accurately
+            const scaledBox = new THREE.Box3().setFromObject(modelRoot);
+            const scaledCenter = new THREE.Vector3();
+            scaledBox.getCenter(scaledCenter);
+
+            modelRoot.position.x -= scaledCenter.x;
+            modelRoot.position.z -= scaledCenter.z;
+            modelRoot.position.y -= scaledBox.min.y;
+
+            // Add subtle studio ground plate under imported model
+            const groundPlate = createBox(18, 0.12, 18, 0xd6d5d0, 0, -0.06, 0, { roughness: 0.9, castShadow: false });
+            customModelGroup.add(groundPlate);
+
+            // 3. Register child meshes for shadows & interactive raycast picking/fine-tuning
+            let meshCount = 0;
+            modelRoot.traverse(child => {
+              if (child.isMesh) {
+                meshCount++;
+                child.castShadow = true;
+                child.receiveShadow = true;
+                const mBox = new THREE.Box3().setFromObject(child);
+                const mSize = new THREE.Vector3();
+                mBox.getSize(mSize);
+                child.userData = {
+                  isFurniture: true,
+                  furnId: `glb_mesh_${meshCount}`,
+                  furnName: child.name || `导入构件 #${meshCount}`,
+                  spaceName: file.name,
+                  dims: {
+                    w: Math.max(0.05, mSize.x),
+                    h: Math.max(0.05, mSize.y),
+                    d: Math.max(0.05, mSize.z)
+                  },
+                  initPos: child.position.clone(),
+                  initRotY: child.rotation.y
+                };
+                interactiveFurnitureMeshes.push(child);
+              }
+            });
+
+            customModelGroup.add(modelRoot);
+
+            // Show restore button & update HUD
+            const restoreBtn = document.getElementById('btnRestoreDefaultModel');
+            restoreBtn.classList.remove('hidden');
+            restoreBtn.classList.add('flex');
+            document.getElementById('hudViewSub').textContent = `已导入外部模型: ${file.name} (${meshCount} 个网格构件)`;
+            document.getElementById('cardSpaceName').textContent = file.name;
+            document.getElementById('cardSpaceEn').textContent = 'Imported GLB/GLTF Model';
+            document.getElementById('cardSpaceArea').textContent = `${meshCount} 构件`;
+            document.getElementById('cardSpaceDesc').textContent =
+              `模型已自动居中并自适应缩放至标准视口尺度（原始尺寸 ${size.x.toFixed(2)}×${size.z.toFixed(2)}×${size.y.toFixed(2)}）。点击模型任意子构件可微调位置与旋转。`;
+
+            // Reset camera to frame imported model nicely
+            camCtrl.targetLookAt.set(0, Math.min(3.5, (size.y * scaleFactor) * 0.35), 0);
+            camCtrl.targetSpherical.radius = 16.5;
+            camCtrl.targetSpherical.phi = 0.95;
+            showToast(`✓ 成功导入模型「${file.name}」，共加载 ${meshCount} 个三维构件`);
+          },
+          function(err) {
+            showToast('模型解析失败，请确认文件为有效的 .glb 或二进制/内嵌 .gltf');
+          }
+        );
+      };
+      reader.readAsArrayBuffer(file);
     }
 
     /********************************************************************
@@ -2477,37 +3112,118 @@
       draw2DFloorPlan();
     });
 
-    // REV 02.3 mobile viewer panel: collapsed by default, with real focus management.
-    const mobileLayersToggle = document.getElementById('mobileLayersToggle');
-    const mobileLayersPanel = document.getElementById('rightViewerControls');
-    const mobileLayersQuery = window.matchMedia('(max-width: 767px)');
-    function syncMobileLayers() {
-      const shown = !mobileLayersQuery.matches || mobileLayersPanel.classList.contains('mobile-expanded');
-      mobileLayersPanel.toggleAttribute('inert', !shown);
-      mobileLayersToggle.setAttribute('aria-expanded', String(shown && mobileLayersQuery.matches));
-      mobileLayersToggle.setAttribute('aria-label', shown && mobileLayersQuery.matches ? '收起图层与视图控制' : '展开图层与视图控制');
-    }
-    mobileLayersToggle.addEventListener('click', () => {
-      mobileLayersPanel.classList.toggle('mobile-expanded');
-      syncMobileLayers();
-    });
-    mobileLayersQuery.addEventListener('change', syncMobileLayers);
-    syncMobileLayers();
-
     // Close Selected Space Card
     document.getElementById('btnCloseSpaceCard').addEventListener('click', () => {
       document.getElementById('selectedSpaceCard').classList.add('hidden');
     });
 
-    // Lighting Popover & Sliders
+    // GLB / GLTF Import & Drag-and-Drop Listeners
+    const inputGlbModel = document.getElementById('inputGlbModel');
+    document.getElementById('btnImportModel').addEventListener('click', () => {
+      inputGlbModel.value = '';
+      inputGlbModel.click();
+    });
+    inputGlbModel.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleGlbFileImport(e.target.files[0]);
+      }
+    });
+    document.getElementById('btnRestoreDefaultModel').addEventListener('click', () => {
+      state.hasCustomModel = false;
+      state.customModelName = '';
+      clearGroup(customModelGroup);
+      const restoreBtn = document.getElementById('btnRestoreDefaultModel');
+      restoreBtn.classList.add('hidden');
+      restoreBtn.classList.remove('flex');
+      buildSceneForCurrentDomain();
+      updateAllUI();
+      showToast('已恢复默认空间体块模型');
+    });
+
+    const viewportWrapper = document.getElementById('viewportWrapper');
+    const glbDropOverlay = document.getElementById('glbDropOverlay');
+    viewportWrapper.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      glbDropOverlay.classList.remove('hidden');
+      glbDropOverlay.classList.add('flex');
+    });
+    viewportWrapper.addEventListener('dragleave', (e) => {
+      if (!viewportWrapper.contains(e.relatedTarget)) {
+        glbDropOverlay.classList.add('hidden');
+        glbDropOverlay.classList.remove('flex');
+      }
+    });
+    viewportWrapper.addEventListener('drop', (e) => {
+      e.preventDefault();
+      glbDropOverlay.classList.add('hidden');
+      glbDropOverlay.classList.remove('flex');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleGlbFileImport(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Furniture Inspector Card Listeners
+    document.getElementById('btnCloseFurnitureCard').addEventListener('click', () => {
+      selectFurnitureItem(null);
+    });
+    document.getElementById('btnFurnMoveXNeg').addEventListener('click', () => applySelectedFurnitureTransform(-0.15, 0, 0, 0));
+    document.getElementById('btnFurnMoveXPos').addEventListener('click', () => applySelectedFurnitureTransform(0.15, 0, 0, 0));
+    document.getElementById('btnFurnMoveZNeg').addEventListener('click', () => applySelectedFurnitureTransform(0, 0, -0.15, 0));
+    document.getElementById('btnFurnMoveZPos').addEventListener('click', () => applySelectedFurnitureTransform(0, 0, 0.15, 0));
+    document.getElementById('btnFurnRotLeft').addEventListener('click', () => applySelectedFurnitureTransform(0, 0, 0, -15));
+    document.getElementById('btnFurnRotRight').addEventListener('click', () => applySelectedFurnitureTransform(0, 0, 0, 15));
+    document.getElementById('sliderFurnRotate').addEventListener('input', (e) => {
+      applySelectedFurnitureTransform(0, 0, 0, 0, parseFloat(e.target.value));
+    });
+    document.getElementById('btnFurnResetPose').addEventListener('click', () => {
+      if (!selectedFurnitureMesh || !selectedFurnitureMesh.userData) return;
+      const ud = selectedFurnitureMesh.userData;
+      selectedFurnitureMesh.position.copy(ud.initPos);
+      selectedFurnitureMesh.rotation.y = ud.initRotY;
+      if (ud.furnId) delete furnitureTransformStore[ud.furnId];
+      selectFurnitureItem(selectedFurnitureMesh);
+      showToast(`已复位「${ud.furnName}」的初始坐标与角度`);
+    });
+
+    // Walkthrough Pointer Lock Button
+    document.getElementById('btnLockPointerNow').addEventListener('click', () => {
+      if (state.viewMode === 'walk' && renderer.domElement.requestPointerLock) {
+        try { renderer.domElement.requestPointerLock(); } catch (e) {}
+      }
+    });
+    document.addEventListener('pointerlockchange', () => {
+      camCtrl.isPointerLocked = (document.pointerLockElement === renderer.domElement);
+      const statusEl = document.getElementById('walkLockStatusText');
+      if (statusEl) {
+        statusEl.textContent = camCtrl.isPointerLocked
+          ? '已锁定鼠标视角 (移动鼠标环视 · WASD顺滑平移 · 按 ESC 退出锁定)'
+          : '第一人称漫游 (固定视高 1.60m · 剖切已关闭) — 点击画面锁定鼠标自由环视';
+      }
+    });
+
+    // Lighting Popover & Sliders (Sun Azimuth 0-360°, Elevation 0-90°, Time & Ambient)
     document.getElementById('btnToggleLighting').addEventListener('click', () => {
       document.getElementById('lightingPopover').classList.toggle('hidden');
+    });
+    document.getElementById('sliderSunAzimuth').addEventListener('input', (e) => {
+      state.sunAzimuth = parseFloat(e.target.value);
+      updateLighting();
+    });
+    document.getElementById('sliderSunElevation').addEventListener('input', (e) => {
+      state.sunElevation = parseFloat(e.target.value);
+      updateLighting();
     });
     document.getElementById('sliderSunTime').addEventListener('input', (e) => {
       state.sunTime = parseFloat(e.target.value);
       const hrs = Math.floor(state.sunTime);
       const mins = (state.sunTime % 1) ? '30' : '00';
       document.getElementById('sunTimeLabel').textContent = `${String(hrs).padStart(2, '0')}:${mins}`;
+      // Map solar time (6:00 - 22:00) to azimuth (75° -> 285°) and elevation arc (5° -> 72° -> 5°)
+      const ratio = (state.sunTime - 6) / 16;
+      state.sunAzimuth = Math.round(75 + ratio * 210);
+      state.sunElevation = Math.round(Math.max(2, Math.sin(ratio * Math.PI) * 72));
+      document.getElementById('sliderSunAzimuth').value = state.sunAzimuth;
+      document.getElementById('sliderSunElevation').value = state.sunElevation;
       updateLighting();
     });
     document.getElementById('sliderAmbient').addEventListener('input', (e) => {
@@ -2519,59 +3235,6 @@
       applyCameraPresetForViewMode(state.viewMode);
     });
 
-    /********************************************************************
-     * 移动端抽屉：侧边栏在窄屏默认收起，避免挤占 3D 画面
-     ********************************************************************/
-    const sidebarEl = document.querySelector('aside');
-    // Hide off-canvas sidebar from keyboard navigation on mobile.
-    const mobileQuery = window.matchMedia('(max-width: 1023px)');
-    function syncSidebarFocus() {
-      if (mobileQuery.matches && !sidebarEl.classList.contains('drawer-open')) {
-        sidebarEl.setAttribute('inert', '');
-      } else {
-        sidebarEl.removeAttribute('inert');
-      }
-      document.getElementById('btnToggleSidebar').setAttribute('aria-expanded',
-        String(sidebarEl.classList.contains('drawer-open')));
-    }
-    mobileQuery.addEventListener('change', syncSidebarFocus);
-    const sidebarScrim = document.getElementById('sidebarScrim');
-    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
-
-    function openSidebar() {
-      sidebarEl.classList.add('drawer-open');
-      sidebarScrim.classList.add('show');
-      syncSidebarFocus();
-    }
-
-    function closeSidebar() {
-      sidebarEl.classList.remove('drawer-open');
-      sidebarScrim.classList.remove('show');
-      syncSidebarFocus();
-    }
-
-    btnToggleSidebar.addEventListener('click', () => {
-      sidebarEl.classList.contains('drawer-open') ? closeSidebar() : openSidebar();
-    });
-    sidebarScrim.addEventListener('click', closeSidebar);
-    syncSidebarFocus();
-
-    // 选中空间 / 切换风格后自动收起抽屉，把画面还给用户
-    sidebarEl.addEventListener('click', (e) => {
-      if (window.innerWidth < 1024 && e.target.closest('#spaceListContainer, #styleGridContainer')) {
-        closeSidebar();
-      }
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeSidebar();
-    });
-
-    // 视口尺寸变化时重算 canvas，抽屉开关也会改变可用宽度
-    window.addEventListener('resize', () => {
-      if (window.innerWidth >= 1024) closeSidebar();
-    });
-
     // Save & Export Layout Backup
     function showToast(msg) {
       const t = document.getElementById('toastBanner');
@@ -2580,13 +3243,12 @@
       setTimeout(() => t.classList.add('hidden'), 2400);
     }
     document.getElementById('btnSaveLayout').addEventListener('click', () => {
-      try {
-        localStorage.setItem('base_spatial_lab_state', JSON.stringify(state));
-      } catch (err) {}
-      showToast('✓ 已保存当前 3D 空间布局与风格参数至本机');
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+      savePersistedState(true);
     });
     document.getElementById('btnExportJson').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(createPersistencePayload(), null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2595,6 +3257,51 @@
       URL.revokeObjectURL(url);
       showToast('✓ 已导出 JSON 布局备份文件');
     });
+    const importInput = document.getElementById('inputImportJson');
+    document.getElementById('btnImportJson').addEventListener('click', () => importInput.click());
+    importInput.addEventListener('change', async () => {
+      const file = importInput.files && importInput.files[0];
+      importInput.value = '';
+      if (!file) return;
+      if (file.size > MAX_IMPORT_BYTES) {
+        showToast('导入失败：备份文件不能超过 1 MB');
+        return;
+      }
+
+      const previousPayload = normalizePersistencePayload(createPersistencePayload());
+      try {
+        const importedPayload = normalizePersistencePayload(JSON.parse(await file.text()));
+        applyPersistencePayload(importedPayload);
+        clearTimeout(autosaveTimer);
+        autosaveTimer = null;
+        if (!savePersistedState(false)) throw new Error('无法写入本机存储');
+        showToast('✓ 已导入布局备份并恢复当前视图');
+      } catch (error) {
+        console.warn('导入布局失败', error);
+        try { applyPersistencePayload(previousPayload); } catch (rollbackError) {
+          console.error('恢复导入前状态失败', rollbackError);
+        }
+        showToast(`导入失败：${error.message || '文件格式无效'}`);
+      }
+    });
+
+    const autosaveControlSelector = [
+      '.domain-tab', '.view-tab', '.render-tab', '#cameraPresetSelect', '#btnResetSelection',
+      '#toggleStructureLayer', '#toggleDesignLayer', '#toggleSpaceNames', '#toggleFlowLines',
+      '#toggleRoofTop', '#toggleOpenDoors', '#sliderWallCut', '#toggleCadGrid',
+      '#sliderCadOpacity', '#sliderSunTime', '#sliderSunAzimuth', '#sliderSunElevation', '#sliderAmbient', '#btnResetCamera',
+      '#spaceListContainer button', '#styleGridContainer button', '#cardConnectedLinks button',
+      '#moodboardBody button', '#btnWalkForward', '#btnWalkBack', '#btnWalkLeft', '#btnWalkRight'
+    ].join(',');
+    ['input', 'change', 'click'].forEach(eventName => {
+      document.addEventListener(eventName, event => {
+        if (event.target.closest && event.target.closest(autosaveControlSelector)) scheduleAutosave();
+      });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushAutosave();
+    });
+    window.addEventListener('pagehide', flushAutosave);
 
     // Moodboard Modal (Matches Screenshot 3 reference boards!)
     function renderMoodboardModal() {
@@ -2657,35 +3364,6 @@
     });
 
     // Prompt Modal
-    /**
-     * 复制文本：优先用异步剪贴板 API，失败再回退 execCommand。
-     * 原实现只走 execCommand，在非 HTTPS 或部分浏览器下会静默失败却仍提示"已复制"。
-     */
-    async function copyText(text) {
-      try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text);
-          return true;
-        }
-      } catch (err) {
-        /* 落到回退方案 */
-      }
-
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-      } catch (err) {
-        return false;
-      }
-    }
-
     function renderPromptModal() {
       const list = document.getElementById('promptTemplatesList');
       list.innerHTML = '';
@@ -2704,15 +3382,14 @@
           </div>
           <pre class="bg-white border border-gray-200 rounded-lg p-3 text-[11px] text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">${tpl.content}</pre>
         `;
-        box.querySelector('.copy-prompt-btn').addEventListener('click', async (e) => {
-          const btn = e.currentTarget;
-          const ok = await copyText(tpl.content);
-          showToast(ok ? '✓ 已复制该阶段 AI 提示词到剪贴板' : '✗ 复制失败，请手动选中下方文本复制');
-          if (ok) {
-            const original = btn.textContent;
-            btn.textContent = '已复制 ✓';
-            setTimeout(() => { btn.textContent = original; }, 1600);
-          }
+        box.querySelector('.copy-prompt-btn').addEventListener('click', () => {
+          const ta = document.createElement('textarea');
+          ta.value = tpl.content;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          document.body.removeChild(ta);
+          showToast('✓ 已复制该阶段 AI 提示词到剪贴板');
         });
         list.appendChild(box);
       });
@@ -2735,29 +3412,61 @@
     const raycaster = new THREE.Raycaster();
     const mouseVec = new THREE.Vector2();
     let pointerDownPos = { x: 0, y: 0 };
-    const activeTouchPointers = new Set(); // REV 02.4: detect single-touch orbit only
 
     container.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'touch') activeTouchPointers.add(e.pointerId);
-      camCtrl.isDragging = true;
-      camCtrl.dragButton = e.button;
+      pointerDownPos = { x: e.clientX, y: e.clientY };
       camCtrl.lastX = e.clientX;
       camCtrl.lastY = e.clientY;
-      pointerDownPos = { x: e.clientX, y: e.clientY };
+
+      // Check if clicking a 3D furniture gizmo handle first
+      if (gizmoHandles.length > 0 && state.viewMode !== 'walk') {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseVec.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouseVec, camera);
+        const gizmoHits = raycaster.intersectObjects(gizmoHandles, false);
+        if (gizmoHits.length > 0) {
+          activeGizmoAxis = gizmoHits[0].object.userData.gizmoAxis;
+          camCtrl.isDragging = true;
+          return;
+        }
+      }
+
+      camCtrl.isDragging = true;
+      camCtrl.dragButton = e.button;
     });
 
     window.addEventListener('pointermove', (e) => {
+      // 1. Pointer Lock mouse look in Walkthrough mode
+      if (state.viewMode === 'walk' && camCtrl.isPointerLocked) {
+        const movX = e.movementX || 0;
+        const movY = e.movementY || 0;
+        camCtrl.walkYaw -= movX * 0.0024;
+        camCtrl.walkPitch = Math.max(-0.75, Math.min(0.75, camCtrl.walkPitch - movY * 0.0022));
+        return;
+      }
+
       if (!camCtrl.isDragging) return;
-      const singleTouchOrbit = e.pointerType === 'touch' && activeTouchPointers.size === 1;
-      if (e.pointerType === 'touch' && !singleTouchOrbit) return;
       const dx = e.clientX - camCtrl.lastX;
       const dy = e.clientY - camCtrl.lastY;
       camCtrl.lastX = e.clientX;
       camCtrl.lastY = e.clientY;
 
+      // 2. If dragging a 3D Furniture Gizmo Handle (X/Z translation or Y rotation)
+      if (activeGizmoAxis && selectedFurnitureMesh) {
+        if (activeGizmoAxis === 'x') {
+          applySelectedFurnitureTransform(dx * 0.02, 0, 0, 0);
+        } else if (activeGizmoAxis === 'z') {
+          applySelectedFurnitureTransform(0, 0, dy * 0.02, 0);
+        } else if (activeGizmoAxis === 'rot') {
+          applySelectedFurnitureTransform(0, 0, 0, dx * 0.6);
+        }
+        return;
+      }
+
       if (state.viewMode === 'walk') {
-        camCtrl.walkYaw -= dx * 0.005;
-        camCtrl.walkPitch = Math.max(-0.65, Math.min(0.65, camCtrl.walkPitch - dy * 0.004));
+        camCtrl.walkYaw -= dx * 0.0045;
+        camCtrl.walkPitch = Math.max(-0.75, Math.min(0.75, camCtrl.walkPitch - dy * 0.0038));
       } else if (camCtrl.dragButton === 2 || e.shiftKey) {
         // Pan
         const panSpeed = 0.018;
@@ -2765,34 +3474,56 @@
         camCtrl.targetLookAt.z -= dy * panSpeed;
       } else {
         // Orbit
-        camCtrl.targetSpherical.theta -= dx * (singleTouchOrbit ? 0.012 : 0.007);
+        camCtrl.targetSpherical.theta -= dx * 0.007;
         if (state.viewMode !== 'top') {
-          camCtrl.targetSpherical.phi = Math.max(0.12, Math.min(1.42, camCtrl.targetSpherical.phi - dy * (singleTouchOrbit ? 0.010 : 0.006)));
+          camCtrl.targetSpherical.phi = Math.max(0.12, Math.min(1.42, camCtrl.targetSpherical.phi - dy * 0.006));
         }
       }
     });
 
     window.addEventListener('pointerup', (e) => {
-      if (e.pointerType === 'touch') activeTouchPointers.delete(e.pointerId);
+      if (activeGizmoAxis) {
+        activeGizmoAxis = null;
+        camCtrl.isDragging = false;
+        return;
+      }
       if (!camCtrl.isDragging) return;
       camCtrl.isDragging = false;
       const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
       if (moveDist < 5 && e.target === renderer.domElement) {
-        // Raycast pick space
+        // In walk mode, clicking canvas requests Pointer Lock for smooth first-person mouse look
+        if (state.viewMode === 'walk' && !camCtrl.isPointerLocked && renderer.domElement.requestPointerLock) {
+          try { renderer.domElement.requestPointerLock(); } catch (err) {}
+        }
+
         const rect = renderer.domElement.getBoundingClientRect();
         mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouseVec.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouseVec, camera);
+
+        // Priority 1: Raycast pick furniture / component (Video 01:50)
+        if (state.showDesignLayer || state.hasCustomModel) {
+          const furnHits = raycaster.intersectObjects(interactiveFurnitureMeshes, false);
+          if (furnHits.length > 0 && furnHits[0].object.userData.isFurniture) {
+            selectFurnitureItem(furnHits[0].object);
+            return;
+          }
+        }
+
+        // Priority 2: Raycast pick room / space floor
         const hits = raycaster.intersectObjects(interactivePickMeshes, false);
         if (hits.length > 0 && hits[0].object.userData.spaceId) {
+          selectFurnitureItem(null);
           selectSpace(hits[0].object.userData.spaceId, false);
         }
       }
+      scheduleAutosave();
     });
 
     window.addEventListener('pointercancel', (e) => {
       if (e.pointerType === 'touch') activeTouchPointers.delete(e.pointerId);
       camCtrl.isDragging = false;
+      scheduleAutosave();
     });
 
     container.addEventListener('contextmenu', e => e.preventDefault());
@@ -2805,6 +3536,7 @@
       } else {
         camCtrl.targetSpherical.radius = Math.max(6, Math.min(55, camCtrl.targetSpherical.radius + e.deltaY * 0.015));
       }
+      scheduleAutosave();
     }, { passive: false });
 
     // Keyboard WASD / Arrow Keys
@@ -2823,6 +3555,7 @@
       if (k === 'a' || e.key === 'ArrowLeft') camCtrl.keys.a = false;
       if (k === 'd' || e.key === 'ArrowRight') camCtrl.keys.d = false;
       if (e.key === 'Shift') camCtrl.keys.shift = false;
+      if (['w', 'a', 's', 'd'].includes(k) || e.key.startsWith('Arrow')) scheduleAutosave();
     });
 
     // On-screen D-Pad Buttons for Walkthrough / Pan
@@ -2857,40 +3590,74 @@
     }
     window.addEventListener('resize', handleResize);
 
+    function isPositionCollidingWithWall(nx, nz) {
+      if (state.openDoors) {
+        // Allow passing through doorway openings while preventing outer/solid wall clipping
+        if (nx < -7.2 || nx > 5.5 || nz < -5.8 || nz > 5.7) return true;
+        return false;
+      }
+      for (let i = 0; i < wallColliders.length; i++) {
+        const wc = wallColliders[i];
+        if (nx >= wc.minX && nx <= wc.maxX && nz >= wc.minZ && nz <= wc.maxZ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     function animate() {
       requestAnimationFrame(animate);
 
-      const moveSpeed = camCtrl.keys.shift ? 0.14 : 0.07;
-      if (camCtrl.keys.w || camCtrl.keys.s || camCtrl.keys.a || camCtrl.keys.d) {
-        if (state.viewMode === 'walk') {
-          const fwd = new THREE.Vector3(-Math.sin(camCtrl.walkYaw), 0, -Math.cos(camCtrl.walkYaw));
-          const right = new THREE.Vector3(Math.cos(camCtrl.walkYaw), 0, -Math.sin(camCtrl.walkYaw));
-          if (camCtrl.keys.w) camCtrl.walkPos.addScaledVector(fwd, moveSpeed);
-          if (camCtrl.keys.s) camCtrl.walkPos.addScaledVector(fwd, -moveSpeed);
-          if (camCtrl.keys.d) camCtrl.walkPos.addScaledVector(right, moveSpeed);
-          if (camCtrl.keys.a) camCtrl.walkPos.addScaledVector(right, -moveSpeed);
-        } else {
-          if (camCtrl.keys.w) camCtrl.targetLookAt.z -= moveSpeed;
-          if (camCtrl.keys.s) camCtrl.targetLookAt.z += moveSpeed;
-          if (camCtrl.keys.a) camCtrl.targetLookAt.x -= moveSpeed;
-          if (camCtrl.keys.d) camCtrl.targetLookAt.x += moveSpeed;
-        }
-      }
-
+      const accel = camCtrl.keys.shift ? 0.022 : 0.012;
       if (state.viewMode === 'walk') {
-        camera.position.lerp(camCtrl.walkPos, 0.22);
+        const fwd = new THREE.Vector3(-Math.sin(camCtrl.walkYaw), 0, -Math.cos(camCtrl.walkYaw));
+        const right = new THREE.Vector3(Math.cos(camCtrl.walkYaw), 0, -Math.sin(camCtrl.walkYaw));
+        if (camCtrl.keys.w) camCtrl.walkVel.addScaledVector(fwd, accel);
+        if (camCtrl.keys.s) camCtrl.walkVel.addScaledVector(fwd, -accel);
+        if (camCtrl.keys.d) camCtrl.walkVel.addScaledVector(right, accel);
+        if (camCtrl.keys.a) camCtrl.walkVel.addScaledVector(right, -accel);
+
+        // Smooth velocity damping
+        camCtrl.walkVel.multiplyScalar(0.84);
+        if (camCtrl.walkVel.lengthSq() > 0.00001) {
+          const nextX = camCtrl.walkPos.x + camCtrl.walkVel.x;
+          const nextZ = camCtrl.walkPos.z + camCtrl.walkVel.z;
+          if (!state.hasCustomModel && isPositionCollidingWithWall(nextX, camCtrl.walkPos.z)) {
+            camCtrl.walkVel.x = 0;
+          } else {
+            camCtrl.walkPos.x = nextX;
+          }
+          if (!state.hasCustomModel && isPositionCollidingWithWall(camCtrl.walkPos.x, nextZ)) {
+            camCtrl.walkVel.z = 0;
+          } else {
+            camCtrl.walkPos.z = nextZ;
+          }
+        }
+        // Strictly lock eye height at 1.60m
+        camCtrl.walkPos.y = WALK_EYE_HEIGHT;
+        camera.position.lerp(camCtrl.walkPos, 0.32);
+        camera.position.y = WALK_EYE_HEIGHT;
         const lookTarget = new THREE.Vector3(
           camera.position.x - Math.sin(camCtrl.walkYaw) * Math.cos(camCtrl.walkPitch) * 5,
-          camera.position.y + Math.sin(camCtrl.walkPitch) * 5,
+          WALK_EYE_HEIGHT + Math.sin(camCtrl.walkPitch) * 5,
           camera.position.z - Math.cos(camCtrl.walkYaw) * Math.cos(camCtrl.walkPitch) * 5
         );
         camera.lookAt(lookTarget);
+      } else if (camCtrl.keys.w || camCtrl.keys.s || camCtrl.keys.a || camCtrl.keys.d) {
+        const moveSpeed = camCtrl.keys.shift ? 0.14 : 0.07;
+        if (camCtrl.keys.w) camCtrl.targetLookAt.z -= moveSpeed;
+        if (camCtrl.keys.s) camCtrl.targetLookAt.z += moveSpeed;
+        if (camCtrl.keys.a) camCtrl.targetLookAt.x -= moveSpeed;
+        if (camCtrl.keys.d) camCtrl.targetLookAt.x += moveSpeed;
+      }
+
+      if (state.viewMode === 'walk') {
+        // Handled above with 1.60m fixed eye height
       } else if (state.viewMode !== 'plan') {
         // Smooth damping for Orbit / Axon / Top camera
-        const orbitDamping = camCtrl.isDragging && activeTouchPointers.size === 1 ? 0.20 : 0.14;
         camCtrl.spherical.radius += (camCtrl.targetSpherical.radius - camCtrl.spherical.radius) * 0.14;
-        camCtrl.spherical.phi += (camCtrl.targetSpherical.phi - camCtrl.spherical.phi) * orbitDamping;
-        camCtrl.spherical.theta += (camCtrl.targetSpherical.theta - camCtrl.spherical.theta) * orbitDamping;
+        camCtrl.spherical.phi += (camCtrl.targetSpherical.phi - camCtrl.spherical.phi) * 0.14;
+        camCtrl.spherical.theta += (camCtrl.targetSpherical.theta - camCtrl.spherical.theta) * 0.14;
         camCtrl.target.lerp(camCtrl.targetLookAt, 0.14);
 
         const r = camCtrl.spherical.radius;
@@ -2912,8 +3679,10 @@
 
     window.onload = () => {
       handleResize();
-      buildSceneForCurrentDomain();
-      updateAllUI();
+      if (!loadPersistedState()) {
+        buildSceneForCurrentDomain();
+        updateAllUI();
+      }
       animate();
     };
   </script>
